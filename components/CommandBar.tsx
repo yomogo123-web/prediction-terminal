@@ -13,6 +13,8 @@ export default function CommandBar() {
   const setSearchQuery = useTerminalStore((s) => s.setSearchQuery);
   const setCategoryFilter = useTerminalStore((s) => s.setCategoryFilter);
   const markets = useTerminalStore((s) => s.markets);
+  const rightPanelTab = useTerminalStore((s) => s.rightPanelTab);
+  const setRightPanelTab = useTerminalStore((s) => s.setRightPanelTab);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -25,6 +27,13 @@ export default function CommandBar() {
         setCategoryFilter(null);
         inputRef.current?.blur();
       }
+      // A key to toggle analytics panel
+      if (
+        (e.key === "a" || e.key === "A") &&
+        document.activeElement !== inputRef.current
+      ) {
+        setRightPanelTab(rightPanelTab === "analytics" ? "watchlist" : "analytics");
+      }
       // Number keys 1-5 for category filter
       if (!inputRef.current || document.activeElement !== inputRef.current) {
         const num = parseInt(e.key);
@@ -36,7 +45,7 @@ export default function CommandBar() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [categoryFilter, setCategoryFilter, setSearchQuery]);
+  }, [categoryFilter, setCategoryFilter, setSearchQuery, rightPanelTab, setRightPanelTab]);
 
   return (
     <div className="flex items-center gap-3 px-4 py-2 bg-terminal-panel border-b border-terminal-border">
@@ -79,6 +88,10 @@ export default function CommandBar() {
 
       <span className="text-terminal-muted">│</span>
 
+      <span className="text-terminal-muted text-xs font-mono">
+        <span className="text-terminal-amber">A</span>:Analytics
+      </span>
+      <span className="text-terminal-muted">│</span>
       <span className="text-terminal-muted text-xs font-mono">
         {markets.length} MKTs
       </span>
