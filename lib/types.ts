@@ -18,8 +18,9 @@ export interface Market {
   status: "active" | "resolved" | "closed";
   resolution?: "yes" | "no";
   endDate: string; // ISO date string
-  source: "polymarket" | "mock";
+  source: "polymarket" | "kalshi" | "manifold" | "predictit" | "mock";
   clobTokenId?: string; // Polymarket CLOB token ID for price history
+  sourceUrl?: string; // Link to market on source platform
 }
 
 export type SortField = "probability" | "volume" | "change24h" | "title";

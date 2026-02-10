@@ -12,7 +12,7 @@ export default function Ticker() {
         className="whitespace-nowrap h-full flex items-center"
         style={{
           display: "inline-flex",
-          animation: "ticker-scroll 40s linear infinite",
+          animation: "ticker-scroll 600s linear infinite",
         }}
       >
         {[...tickerItems, ...tickerItems].map((market, i) => (

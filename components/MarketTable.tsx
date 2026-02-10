@@ -18,6 +18,14 @@ const categoryColors: Record<string, string> = {
   "World Events": "text-cyan-400",
 };
 
+const sourceLabels: Record<string, { label: string; color: string }> = {
+  polymarket: { label: "POLY", color: "text-purple-400" },
+  kalshi: { label: "KLSH", color: "text-blue-400" },
+  manifold: { label: "MNFD", color: "text-green-400" },
+  predictit: { label: "PDIT", color: "text-orange-400" },
+  mock: { label: "MOCK", color: "text-terminal-muted" },
+};
+
 export default function MarketTable() {
   const filteredMarkets = useFilteredMarkets();
   const selectedMarketId = useTerminalStore((s) => s.selectedMarketId);
@@ -109,6 +117,7 @@ export default function MarketTable() {
               </button>
             </th>
             <th className="text-left px-3 py-2 font-normal w-28">CAT</th>
+            <th className="text-center px-3 py-2 font-normal w-16">SRC</th>
           </tr>
         </thead>
         <tbody>
@@ -164,6 +173,9 @@ export default function MarketTable() {
                   }`}
                 >
                   {market.category}
+                </td>
+                <td className={`px-3 py-2 text-center text-[10px] ${sourceLabels[market.source]?.color || "text-terminal-muted"}`}>
+                  {sourceLabels[market.source]?.label || market.source}
                 </td>
               </tr>
             );

@@ -90,9 +90,9 @@ export default function MarketDetail() {
             </div>
           </div>
           <div className="bg-terminal-bg p-2 border border-terminal-border">
-            <div className="text-terminal-muted">STATUS</div>
-            <div className="text-terminal-green uppercase">
-              {selectedMarket.status}
+            <div className="text-terminal-muted">SOURCE</div>
+            <div className="text-terminal-text uppercase">
+              {selectedMarket.source}
             </div>
           </div>
           <div className="bg-terminal-bg p-2 border border-terminal-border">
@@ -102,14 +102,26 @@ export default function MarketDetail() {
           <div className="bg-terminal-bg p-2 border border-terminal-border">
             <div className="text-terminal-muted">END DATE</div>
             <div className="text-terminal-text">
-              {new Date(selectedMarket.endDate).toLocaleDateString("en-US", {
+              {selectedMarket.endDate ? new Date(selectedMarket.endDate).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
-              })}
+              }) : "—"}
             </div>
           </div>
         </div>
+
+        {/* Source link */}
+        {selectedMarket.sourceUrl && (
+          <a
+            href={selectedMarket.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full py-1.5 text-center text-xs font-mono text-terminal-muted border border-terminal-border hover:text-terminal-text hover:border-terminal-text/50 transition-colors"
+          >
+            View on {selectedMarket.source.charAt(0).toUpperCase() + selectedMarket.source.slice(1)} →
+          </a>
+        )}
 
         {/* Description */}
         <div className="text-xs font-mono">

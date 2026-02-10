@@ -82,13 +82,18 @@ export default function CommandBar() {
       <span className="text-terminal-muted text-xs font-mono">
         {markets.length} MKTs
       </span>
-      <span className={`text-xs font-mono font-bold ${
-        useTerminalStore((s) => s.dataSource) === "live"
-          ? "text-terminal-green"
-          : "text-terminal-amber"
-      }`}>
-        {useTerminalStore((s) => s.dataSource) === "live" ? "● LIVE" : "● MOCK"}
-      </span>
+      {(() => {
+        const dataSource = useTerminalStore.getState().dataSource;
+        const sources = new Set(markets.map((m) => m.source));
+        sources.delete("mock");
+        return (
+          <span className={`text-xs font-mono font-bold ${
+            dataSource === "live" ? "text-terminal-green" : "text-terminal-amber"
+          }`}>
+            {dataSource === "live" ? `● LIVE (${sources.size} src)` : "● MOCK"}
+          </span>
+        );
+      })()}
     </div>
   );
 }
