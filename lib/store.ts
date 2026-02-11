@@ -1,7 +1,8 @@
 import { create } from "zustand";
-import { Market, Category, SortField, SortDirection, RightPanelTab, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData } from "./types";
+import { Market, Category, SortField, SortDirection, RightPanelTab, Alert, ArbPair, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData } from "./types";
 import { generateMockMarkets } from "./mock-data";
 import { fetchMarkets, fetchPriceHistory } from "./api";
+import { findArbPairs } from "./arbitrage";
 import { useMemo } from "react";
 
 interface TerminalStore {
@@ -16,16 +17,29 @@ interface TerminalStore {
   dataSource: "live" | "mock";
   rightPanelTab: RightPanelTab;
 
+  // Alerts
+  alerts: Alert[];
+  triggeredAlerts: Alert[];
+
   initMarkets: () => Promise<void>;
   refreshMarkets: () => Promise<void>;
   selectMarket: (id: string) => void;
   toggleWatchlist: (id: string) => void;
+  setWatchlist: (ids: string[]) => void;
   setSearchQuery: (query: string) => void;
   setCategoryFilter: (category: Category | null) => void;
   setSort: (field: SortField) => void;
   simulatePriceUpdate: () => void;
   loadMarketHistory: (marketId: string) => Promise<void>;
   setRightPanelTab: (tab: RightPanelTab) => void;
+
+  // Alert actions
+  setAlerts: (alerts: Alert[]) => void;
+  addAlert: (alert: Alert) => void;
+  removeAlert: (id: string) => void;
+  toggleAlert: (id: string) => void;
+  triggerAlerts: (ids: string[]) => void;
+  dismissTriggeredAlert: (id: string) => void;
 }
 
 export const useTerminalStore = create<TerminalStore>((set, get) => ({
@@ -39,6 +53,8 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   loading: true,
   dataSource: "mock",
   rightPanelTab: "watchlist",
+  alerts: [],
+  triggeredAlerts: [],
 
   initMarkets: async () => {
     set({ loading: true });
@@ -80,7 +96,6 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
             return {
               ...fresh,
               previousProbability: existing.probability,
-              // Preserve loaded price history
               priceHistory:
                 existing.priceHistory.length > 0
                   ? existing.priceHistory
@@ -90,7 +105,6 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
           return fresh;
         });
 
-        // Keep selected market if still exists
         const selectedStillExists = merged.some(
           (m) => m.id === state.selectedMarketId
         );
@@ -114,11 +128,22 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
 
   toggleWatchlist: (id: string) => {
     const { watchlist } = get();
-    if (watchlist.includes(id)) {
-      set({ watchlist: watchlist.filter((wid) => wid !== id) });
-    } else {
-      set({ watchlist: [...watchlist, id] });
-    }
+    const isRemoving = watchlist.includes(id);
+    const newWatchlist = isRemoving
+      ? watchlist.filter((wid) => wid !== id)
+      : [...watchlist, id];
+    set({ watchlist: newWatchlist });
+
+    // Fire-and-forget sync to DB
+    fetch("/api/watchlist", {
+      method: isRemoving ? "DELETE" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ marketId: id }),
+    }).catch(() => {});
+  },
+
+  setWatchlist: (ids: string[]) => {
+    set({ watchlist: ids });
   },
 
   setSearchQuery: (query: string) => {
@@ -143,7 +168,6 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       markets: state.markets.map((market) => {
         if (market.status !== "active") return market;
 
-        // Gentle drift between real refreshes
         const magnitude = state.dataSource === "live" ? 0.1 : 1.0;
         const drift = (Math.random() - 0.5) * magnitude;
         const newProb = Math.max(1, Math.min(99, market.probability + drift));
@@ -162,7 +186,6 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     const { markets } = get();
     const market = markets.find((m) => m.id === marketId);
     if (!market || !market.clobTokenId) return;
-    // Skip if already loaded
     if (market.priceHistory.length > 10) return;
 
     try {
@@ -179,6 +202,65 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
 
   setRightPanelTab: (tab: RightPanelTab) => {
     set({ rightPanelTab: tab });
+  },
+
+  // Alert actions
+  setAlerts: (alerts: Alert[]) => {
+    set({ alerts });
+  },
+
+  addAlert: (alert: Alert) => {
+    set((state) => ({ alerts: [...state.alerts, alert] }));
+    // Sync to DB
+    fetch("/api/alerts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(alert),
+    }).catch(() => {});
+  },
+
+  removeAlert: (id: string) => {
+    set((state) => ({ alerts: state.alerts.filter((a) => a.id !== id) }));
+    fetch("/api/alerts", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).catch(() => {});
+  },
+
+  toggleAlert: (id: string) => {
+    set((state) => ({
+      alerts: state.alerts.map((a) =>
+        a.id === id ? { ...a, active: !a.active } : a
+      ),
+    }));
+  },
+
+  triggerAlerts: (ids: string[]) => {
+    set((state) => {
+      const idSet = new Set(ids);
+      const triggered = state.alerts.filter((a) => idSet.has(a.id));
+      return {
+        alerts: state.alerts.map((a) =>
+          idSet.has(a.id) ? { ...a, active: false } : a
+        ),
+        triggeredAlerts: [...state.triggeredAlerts, ...triggered],
+      };
+    });
+    // Sync deactivation to DB
+    for (const id of ids) {
+      fetch("/api/alerts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, active: false }),
+      }).catch(() => {});
+    }
+  },
+
+  dismissTriggeredAlert: (id: string) => {
+    set((state) => ({
+      triggeredAlerts: state.triggeredAlerts.filter((a) => a.id !== id),
+    }));
   },
 }));
 
@@ -261,6 +343,14 @@ export function useTopMovers(): { gainers: Market[]; losers: Market[] } {
   }, [markets]);
 }
 
+export function useArbPairs(): ArbPair[] {
+  const markets = useTerminalStore((s) => s.markets);
+
+  return useMemo(() => {
+    return findArbPairs(markets);
+  }, [markets]);
+}
+
 const ALL_CATEGORIES: Category[] = ["Politics", "Sports", "Crypto", "Tech", "World Events"];
 
 export function useMarketAnalytics(): MarketAnalytics {
@@ -270,23 +360,20 @@ export function useMarketAnalytics(): MarketAnalytics {
     const active = markets.filter((m) => m.status === "active");
     const marketCount = active.length;
 
-    // Meta stats
     let totalVolume = 0;
     let probSum = 0;
     const sourceSet = new Set<string>();
     const catMap = new Map<Category, { volume: number; count: number; changeSum: number; changes: number[] }>();
     const srcMap = new Map<Market["source"], { volume: number; count: number; probWeightedVol: number }>();
 
-    // Sentiment accumulators
     let bullWeightedVol = 0;
     let bearWeightedVol = 0;
     let bullCount = 0;
     let bearCount = 0;
     let neutralCount = 0;
 
-    // VWAP accumulators
-    let vwapNumerator = 0; // sum(prob * volume)
-    let vwapDenominator = 0; // sum(volume)
+    let vwapNumerator = 0;
+    let vwapDenominator = 0;
     const buckets = Array.from({ length: 10 }, (_, i) => ({
       label: `${i * 10}-${i * 10 + 10}`,
       min: i * 10,
@@ -299,7 +386,6 @@ export function useMarketAnalytics(): MarketAnalytics {
       probSum += m.probability;
       if (m.source !== "mock") sourceSet.add(m.source);
 
-      // Category stats
       const cat = catMap.get(m.category) || { volume: 0, count: 0, changeSum: 0, changes: [] };
       cat.volume += m.volume;
       cat.count += 1;
@@ -307,14 +393,12 @@ export function useMarketAnalytics(): MarketAnalytics {
       cat.changes.push(m.change24h);
       catMap.set(m.category, cat);
 
-      // Source stats
       const src = srcMap.get(m.source) || { volume: 0, count: 0, probWeightedVol: 0 };
       src.volume += m.volume;
       src.count += 1;
       src.probWeightedVol += m.probability * m.volume;
       srcMap.set(m.source, src);
 
-      // Sentiment
       if (m.probability > 50) {
         bullCount++;
         bullWeightedVol += m.volume;
@@ -325,11 +409,9 @@ export function useMarketAnalytics(): MarketAnalytics {
         neutralCount++;
       }
 
-      // VWAP
       vwapNumerator += m.probability * m.volume;
       vwapDenominator += m.volume;
 
-      // Probability distribution
       const bucketIdx = Math.min(Math.floor(m.probability / 10), 9);
       buckets[bucketIdx].count += 1;
     }
@@ -348,7 +430,6 @@ export function useMarketAnalytics(): MarketAnalytics {
       .map(([source, stat]) => ({ source, volume: stat.volume, count: stat.count }))
       .sort((a, b) => b.volume - a.volume);
 
-    // Hot markets: abs(change24h) * log(volume + 1)
     const hotMarkets = [...active]
       .map((market) => ({
         market,
@@ -357,7 +438,6 @@ export function useMarketAnalytics(): MarketAnalytics {
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
 
-    // --- NEW: Sentiment ---
     const totalSentimentVol = bullWeightedVol + bearWeightedVol || 1;
     const sentiment: SentimentData = {
       bullRatio: bullWeightedVol / totalSentimentVol * 100,
@@ -367,7 +447,6 @@ export function useMarketAnalytics(): MarketAnalytics {
       neutralCount,
     };
 
-    // --- NEW: Volatility by Category ---
     const volatilityByCategory: VolatilityData[] = ALL_CATEGORIES.map((category) => {
       const stat = catMap.get(category);
       if (!stat || stat.count === 0) return { category, stdDev: 0, maxAbsMove: 0, count: 0 };
@@ -377,7 +456,6 @@ export function useMarketAnalytics(): MarketAnalytics {
       return { category, stdDev: Math.sqrt(variance), maxAbsMove, count: stat.count };
     }).sort((a, b) => b.stdDev - a.stdDev);
 
-    // --- NEW: VWAP ---
     const overallVwap = vwapDenominator > 0 ? vwapNumerator / vwapDenominator : 0;
     const overallAvg = marketCount > 0 ? probSum / marketCount : 0;
     const vwap: VWAPData = {
@@ -394,13 +472,12 @@ export function useMarketAnalytics(): MarketAnalytics {
       })).sort((a, b) => b.count - a.count),
     };
 
-    // --- NEW: Volume Concentration (HHI) ---
     const sortedByVol = [...active].sort((a, b) => b.volume - a.volume);
     const totalVol = totalVolume || 1;
     const hhi = active.reduce((sum, m) => {
       const share = m.volume / totalVol;
       return sum + share * share;
-    }, 0) * 10000; // HHI scale 0-10000
+    }, 0) * 10000;
     const top5 = sortedByVol.slice(0, 5);
     const top5Vol = top5.reduce((s, m) => s + m.volume, 0);
     const concentrationLabel = hhi < 1500 ? "LOW" as const
@@ -417,14 +494,12 @@ export function useMarketAnalytics(): MarketAnalytics {
       label: concentrationLabel,
     };
 
-    // --- NEW: Mispricing Signals ---
     const mispricingSignals: MispricingSignal[] = [];
     const medianVolume = marketCount > 0
       ? [...active].sort((a, b) => a.volume - b.volume)[Math.floor(marketCount / 2)].volume
       : 0;
 
     for (const m of active) {
-      // Overconfidence: near extremes with high volume
       if ((m.probability < 15 || m.probability > 85) && m.volume > medianVolume * 1.5) {
         const extremeness = m.probability < 50 ? (15 - m.probability) : (m.probability - 85);
         const volRatio = m.volume / (medianVolume || 1);
@@ -434,7 +509,6 @@ export function useMarketAnalytics(): MarketAnalytics {
           score: Math.max(0, extremeness) * volRatio,
         });
       }
-      // Opportunity: near 50/50 with low volume
       if (m.probability >= 35 && m.probability <= 65 && m.volume < medianVolume * 0.5) {
         const closeness = 1 - Math.abs(m.probability - 50) / 15;
         const volDiscount = 1 - (m.volume / (medianVolume || 1));
@@ -447,13 +521,11 @@ export function useMarketAnalytics(): MarketAnalytics {
     }
     mispricingSignals.sort((a, b) => b.score - a.score);
 
-    // --- NEW: Category Momentum ---
     const categoryMomentum: MomentumData[] = ALL_CATEGORIES.map((category) => {
       const stat = catMap.get(category);
       if (!stat || stat.count === 0) return { category, upPct: 0, downPct: 0, netMomentum: 0, upCount: 0, downCount: 0 };
       const upCount = stat.changes.filter((c) => c > 0).length;
       const downCount = stat.changes.filter((c) => c < 0).length;
-      // Volume-weighted net momentum for this category
       const catMarkets = active.filter((m) => m.category === category);
       const catTotalVol = catMarkets.reduce((s, m) => s + m.volume, 0) || 1;
       const netMomentum = catMarkets.reduce((s, m) => s + m.change24h * (m.volume / catTotalVol), 0);

@@ -6,8 +6,10 @@ import MarketChart from "./MarketChart";
 import MarketDetail from "./MarketDetail";
 import Watchlist from "./Watchlist";
 import AnalyticsPanel from "./AnalyticsPanel";
+import ArbitragePanel from "./ArbitragePanel";
 import Ticker from "./Ticker";
 import TrendingPanel from "./TrendingPanel";
+import Toast from "./Toast";
 import { useTerminalStore } from "@/lib/store";
 import { RightPanelTab } from "@/lib/types";
 
@@ -50,7 +52,7 @@ export default function Terminal() {
           {/* Tabbed Panel (bottom) */}
           <div className="flex-1 overflow-hidden flex flex-col">
             <div className="flex border-b border-terminal-border">
-              {(["watchlist", "analytics"] as RightPanelTab[]).map((tab) => (
+              {(["watchlist", "analytics", "arbitrage"] as RightPanelTab[]).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setRightPanelTab(tab)}
@@ -60,12 +62,18 @@ export default function Terminal() {
                       : "text-terminal-muted hover:text-terminal-text"
                   }`}
                 >
-                  {tab === "watchlist" ? "★ Watchlist" : "◆ Analytics"}
+                  {tab === "watchlist" ? "★ Watchlist" : tab === "analytics" ? "◆ Analytics" : "⇄ Arbitrage"}
                 </button>
               ))}
             </div>
             <div className="flex-1 overflow-hidden">
-              {rightPanelTab === "watchlist" ? <Watchlist /> : <AnalyticsPanel />}
+              {rightPanelTab === "watchlist" ? (
+                <Watchlist />
+              ) : rightPanelTab === "analytics" ? (
+                <AnalyticsPanel />
+              ) : (
+                <ArbitragePanel />
+              )}
             </div>
           </div>
         </div>
@@ -73,6 +81,9 @@ export default function Terminal() {
 
       {/* Bottom: Scrolling Ticker */}
       <Ticker />
+
+      {/* Toast overlay */}
+      <Toast />
     </div>
   );
 }

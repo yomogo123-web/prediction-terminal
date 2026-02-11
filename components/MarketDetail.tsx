@@ -1,7 +1,7 @@
 "use client";
 
 import { useTerminalStore, useSelectedMarket } from "@/lib/store";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 function formatVolume(v: number): string {
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
@@ -13,6 +13,10 @@ export default function MarketDetail() {
   const selectedMarket = useSelectedMarket();
   const watchlist = useTerminalStore((s) => s.watchlist);
   const toggleWatchlist = useTerminalStore((s) => s.toggleWatchlist);
+  const addAlert = useTerminalStore((s) => s.addAlert);
+  const [alertCondition, setAlertCondition] = useState<"above" | "below">("above");
+  const [alertThreshold, setAlertThreshold] = useState("");
+  const [showAlertForm, setShowAlertForm] = useState(false);
 
   const isWatched = selectedMarket
     ? watchlist.includes(selectedMarket.id)
@@ -20,10 +24,7 @@ export default function MarketDetail() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (
-        document.activeElement?.tagName === "INPUT"
-      )
-        return;
+      if (document.activeElement?.tagName === "INPUT") return;
       if (e.key === "w" && selectedMarket) {
         toggleWatchlist(selectedMarket.id);
       }
@@ -31,6 +32,20 @@ export default function MarketDetail() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [selectedMarket, toggleWatchlist]);
+
+  const handleAddAlert = () => {
+    if (!selectedMarket || !alertThreshold) return;
+    const id = `alert-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    addAlert({
+      id,
+      marketId: selectedMarket.id,
+      condition: alertCondition,
+      threshold: parseFloat(alertThreshold),
+      active: true,
+    });
+    setAlertThreshold("");
+    setShowAlertForm(false);
+  };
 
   if (!selectedMarket) {
     return (
@@ -131,17 +146,54 @@ export default function MarketDetail() {
           </p>
         </div>
 
-        {/* Watchlist button */}
-        <button
-          onClick={() => toggleWatchlist(selectedMarket.id)}
-          className={`w-full py-2 text-xs font-mono font-bold border transition-colors ${
-            isWatched
-              ? "border-terminal-amber text-terminal-amber hover:bg-terminal-amber/10"
-              : "border-terminal-green text-terminal-green hover:bg-terminal-green/10"
-          }`}
-        >
-          {isWatched ? "★ REMOVE FROM WATCHLIST (W)" : "☆ ADD TO WATCHLIST (W)"}
-        </button>
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => toggleWatchlist(selectedMarket.id)}
+            className={`flex-1 py-2 text-xs font-mono font-bold border transition-colors ${
+              isWatched
+                ? "border-terminal-amber text-terminal-amber hover:bg-terminal-amber/10"
+                : "border-terminal-green text-terminal-green hover:bg-terminal-green/10"
+            }`}
+          >
+            {isWatched ? "★ UNWATCH (W)" : "☆ WATCH (W)"}
+          </button>
+          <button
+            onClick={() => setShowAlertForm(!showAlertForm)}
+            className="flex-1 py-2 text-xs font-mono font-bold border border-terminal-muted text-terminal-muted hover:border-terminal-text hover:text-terminal-text transition-colors"
+          >
+            {showAlertForm ? "✕ CANCEL" : "SET ALERT"}
+          </button>
+        </div>
+
+        {/* Inline alert form */}
+        {showAlertForm && (
+          <div className="flex gap-2 items-center">
+            <select
+              value={alertCondition}
+              onChange={(e) => setAlertCondition(e.target.value as "above" | "below")}
+              className="bg-terminal-bg border border-terminal-border px-2 py-1 text-xs text-terminal-text focus:outline-none focus:border-terminal-amber"
+            >
+              <option value="above">Above</option>
+              <option value="below">Below</option>
+            </select>
+            <input
+              type="number"
+              value={alertThreshold}
+              onChange={(e) => setAlertThreshold(e.target.value)}
+              placeholder="50"
+              className="bg-terminal-bg border border-terminal-border px-2 py-1 text-xs text-terminal-text w-16 focus:outline-none focus:border-terminal-amber"
+            />
+            <span className="text-terminal-muted text-xs">¢</span>
+            <button
+              onClick={handleAddAlert}
+              disabled={!alertThreshold}
+              className="px-3 py-1 text-xs bg-terminal-amber text-terminal-bg font-bold disabled:opacity-30"
+            >
+              SET
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
