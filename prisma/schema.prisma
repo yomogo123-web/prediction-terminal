@@ -1,0 +1,38 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             String      @id @default(cuid())
+  email          String      @unique
+  hashedPassword String
+  name           String?
+  createdAt      DateTime    @default(now())
+  watchlists     Watchlist[]
+  alerts         Alert[]
+}
+
+model Watchlist {
+  id       String @id @default(cuid())
+  userId   String
+  marketId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, marketId])
+}
+
+model Alert {
+  id        String   @id @default(cuid())
+  userId    String
+  marketId  String
+  condition String   // "above" | "below" | "change"
+  threshold Float
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

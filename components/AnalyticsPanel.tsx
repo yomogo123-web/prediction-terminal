@@ -1,6 +1,7 @@
 "use client";
 
 import { useMarketAnalytics, useTerminalStore } from "@/lib/store";
+import CorrelationMatrix from "./CorrelationMatrix";
 
 function formatVolume(v: number): string {
   if (v >= 1_000_000_000) return `$${(v / 1_000_000_000).toFixed(1)}B`;
@@ -385,6 +386,9 @@ export default function AnalyticsPanel() {
           </div>
         ))}
       </div>
+
+      {/* Correlation Matrix */}
+      <CorrelationMatrix />
     </div>
   );
 }

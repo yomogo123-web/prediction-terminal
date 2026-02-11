@@ -25,7 +25,27 @@ export interface Market {
 
 export type SortField = "probability" | "volume" | "change24h" | "title";
 export type SortDirection = "asc" | "desc";
-export type RightPanelTab = "watchlist" | "analytics";
+export type RightPanelTab = "watchlist" | "analytics" | "arbitrage";
+
+export interface Alert {
+  id: string;
+  marketId: string;
+  condition: "above" | "below" | "change";
+  threshold: number;
+  active: boolean;
+}
+
+export interface ArbPair {
+  marketA: Market;
+  marketB: Market;
+  spread: number; // absolute price difference
+  similarity: number; // 0-1 title similarity
+}
+
+export interface CorrelationMatrix {
+  labels: string[];
+  values: number[][]; // NxN matrix of Pearson coefficients
+}
 
 export interface CategoryStat {
   category: Category;

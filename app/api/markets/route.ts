@@ -16,24 +16,28 @@ function categorize(text: string): Category {
   return "World Events";
 }
 
-// ─── Polymarket ─────────────────────────────────────────────────────
+// ─── Polymarket (paginated — 3 parallel requests) ───────────────────
 
 async function fetchPolymarket(): Promise<Market[]> {
-  const res = await fetch(
-    "https://gamma-api.polymarket.com/events?closed=false&limit=40&order=volume24hr&ascending=false",
-    { cache: "no-store" }
+  const offsets = [0, 40, 80];
+  const fetches = offsets.map((offset) =>
+    fetch(
+      `https://gamma-api.polymarket.com/events?closed=false&limit=40&order=volume24hr&ascending=false&offset=${offset}`,
+      { cache: "no-store" }
+    ).then((r) => (r.ok ? r.json() : []))
+    .catch(() => [])
   );
-  if (!res.ok) throw new Error(`Polymarket ${res.status}`);
-  const events = await res.json();
-  const markets: Market[] = [];
 
-  for (const event of events) {
+  const allEvents = (await Promise.all(fetches)).flat();
+  const markets: Market[] = [];
+  const seen = new Set<string>();
+
+  for (const event of allEvents) {
     if (!event.markets?.length) continue;
     const category = categorize(
       (event.tags || []).map((t: { label?: string; slug?: string }) => t.label || t.slug || "").join(" ") + " " + event.title
     );
 
-    // Filter out inactive placeholder markets (e.g. "Person P", "Person AN")
     let eventMarkets = event.markets.filter(
       (m: Record<string, unknown>) => m.active === true
     );
@@ -51,6 +55,10 @@ async function fetchPolymarket(): Promise<Market[]> {
     }
 
     for (const mkt of eventMarkets) {
+      const id = `poly-${mkt.id}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+
       let probability = 50;
       try { const p = JSON.parse(mkt.outcomePrices || "[]"); if (p.length) probability = Math.round(parseFloat(p[0]) * 10000) / 100; } catch {}
 
@@ -64,7 +72,7 @@ async function fetchPolymarket(): Promise<Market[]> {
       const mktVolume = parseFloat(mkt.volume) || 0;
 
       markets.push({
-        id: `poly-${mkt.id}`,
+        id,
         title,
         description: event.description || mkt.question,
         category,
@@ -84,66 +92,74 @@ async function fetchPolymarket(): Promise<Market[]> {
   return markets;
 }
 
-// ─── Kalshi ─────────────────────────────────────────────────────────
+// ─── Kalshi (cursor paginated — up to 3 pages) ─────────────────────
 
 async function fetchKalshi(): Promise<Market[]> {
-  // Use events API with nested markets — the markets endpoint returns empty parlays
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-  const res = await fetch(
-    "https://api.elections.kalshi.com/trade-api/v2/events?limit=50&status=open&with_nested_markets=true",
-    { cache: "no-store", signal: controller.signal }
-  );
-  clearTimeout(timeout);
-  if (!res.ok) throw new Error(`Kalshi ${res.status}`);
-  const data = await res.json();
   const markets: Market[] = [];
+  let cursor: string | undefined;
+  const maxPages = 3;
 
-  for (const event of data.events || []) {
-    const eventMarkets = (event.markets || []).filter(
-      (m: Record<string, unknown>) => (m.volume as number) > 0 || (m.last_price as number) > 0
-    );
+  for (let page = 0; page < maxPages; page++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const url = `https://api.elections.kalshi.com/trade-api/v2/events?limit=100&status=open&with_nested_markets=true${cursor ? `&cursor=${cursor}` : ""}`;
 
-    for (const mkt of eventMarkets) {
-      const probability = typeof mkt.last_price === "number" && mkt.last_price > 0
-        ? mkt.last_price
-        : (typeof mkt.yes_ask === "number" && mkt.yes_ask > 0 ? mkt.yes_ask : 50);
+    try {
+      const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+      clearTimeout(timeout);
+      if (!res.ok) break;
+      const data = await res.json();
 
-      // Kalshi prices are in cents (1-99)
-      const prob = Math.max(1, Math.min(99, probability));
+      for (const event of data.events || []) {
+        const eventMarkets = (event.markets || []).filter(
+          (m: Record<string, unknown>) => (m.volume as number) > 0 || (m.last_price as number) > 0
+        );
 
-      const prevClose = mkt.previous_price || mkt.previous_yes_bid || 0;
-      const change24h = prevClose > 0 ? Math.round((prob - prevClose) * 100) / 100 : 0;
+        for (const mkt of eventMarkets) {
+          const probability = typeof mkt.last_price === "number" && mkt.last_price > 0
+            ? mkt.last_price
+            : (typeof mkt.yes_ask === "number" && mkt.yes_ask > 0 ? mkt.yes_ask : 50);
 
-      const title = eventMarkets.length === 1
-        ? event.title || mkt.title
-        : mkt.title || mkt.ticker;
+          const prob = Math.max(1, Math.min(99, probability));
+          const prevClose = mkt.previous_price || mkt.previous_yes_bid || 0;
+          const change24h = prevClose > 0 ? Math.round((prob - prevClose) * 100) / 100 : 0;
 
-      markets.push({
-        id: `kal-${mkt.ticker}`,
-        title,
-        description: event.title || mkt.subtitle || "",
-        category: categorize((event.title || "") + " " + (mkt.title || "") + " " + (mkt.event_ticker || "")),
-        probability: prob,
-        previousProbability: prob,
-        volume: mkt.volume || 0,
-        change24h,
-        priceHistory: [],
-        status: "active",
-        endDate: mkt.close_time || "",
-        source: "kalshi",
-        sourceUrl: `https://kalshi.com/markets/${mkt.ticker}`,
-      });
+          const title = eventMarkets.length === 1
+            ? event.title || mkt.title
+            : mkt.title || mkt.ticker;
+
+          markets.push({
+            id: `kal-${mkt.ticker}`,
+            title,
+            description: event.title || mkt.subtitle || "",
+            category: categorize((event.title || "") + " " + (mkt.title || "") + " " + (mkt.event_ticker || "")),
+            probability: prob,
+            previousProbability: prob,
+            volume: mkt.volume || 0,
+            change24h,
+            priceHistory: [],
+            status: "active",
+            endDate: mkt.close_time || "",
+            source: "kalshi",
+            sourceUrl: `https://kalshi.com/markets/${mkt.ticker}`,
+          });
+        }
+      }
+
+      cursor = data.cursor;
+      if (!cursor) break;
+    } catch {
+      break;
     }
   }
   return markets;
 }
 
-// ─── Manifold Markets ───────────────────────────────────────────────
+// ─── Manifold Markets (bumped to 200) ───────────────────────────────
 
 async function fetchManifold(): Promise<Market[]> {
   const res = await fetch(
-    "https://api.manifold.markets/v0/search-markets?term=&sort=liquidity&filter=open&limit=50&contractType=BINARY",
+    "https://api.manifold.markets/v0/search-markets?term=&sort=liquidity&filter=open&limit=200&contractType=BINARY",
     { cache: "no-store" }
   );
   if (!res.ok) throw new Error(`Manifold ${res.status}`);
@@ -153,9 +169,7 @@ async function fetchManifold(): Promise<Market[]> {
   for (const mkt of data) {
     if (!mkt.probability) continue;
 
-    const prob = Math.round(mkt.probability * 10000) / 100; // 0-1 → 0-100
-
-    // Estimate 24h change from volume activity
+    const prob = Math.round(mkt.probability * 10000) / 100;
     const change24h = mkt.probChanges?.day
       ? Math.round(mkt.probChanges.day * 10000) / 100
       : 0;
@@ -205,7 +219,6 @@ async function fetchPredictIt(): Promise<Market[]> {
         ? Math.round((prob - prevClose * 100) * 100) / 100
         : 0;
 
-      // For single-contract markets use market name, otherwise contract name
       const title = mkt.contracts.length === 1
         ? mkt.name
         : `${mkt.shortName} — ${contract.name}`;
@@ -217,7 +230,7 @@ async function fetchPredictIt(): Promise<Market[]> {
         category: categorize(mkt.name + " " + contract.name),
         probability: Math.max(1, Math.min(99, prob)),
         previousProbability: prob,
-        volume: 0, // PredictIt doesn't expose volume
+        volume: 0,
         change24h,
         priceHistory: [],
         status: "active",
@@ -271,8 +284,8 @@ export async function GET() {
     bySource[src].sort((a, b) => b.volume - a.volume);
   }
 
-  // Take up to 75 from each source, then fill remaining with leftovers by volume
-  const perSource = 75;
+  // Take up to 250 from each source, then fill remaining with leftovers by volume
+  const perSource = 250;
   const selected: Market[] = [];
   const used = new Set<string>();
   for (const [, markets] of Object.entries(bySource)) {
@@ -281,10 +294,10 @@ export async function GET() {
       used.add(m.id);
     }
   }
-  // Fill to 300 with remaining markets sorted by volume
+  // Fill to 1000 with remaining markets sorted by volume
   const remaining = pool.filter((m) => !used.has(m.id)).sort((a, b) => b.volume - a.volume);
   for (const m of remaining) {
-    if (selected.length >= 300) break;
+    if (selected.length >= 1000) break;
     selected.push(m);
   }
 

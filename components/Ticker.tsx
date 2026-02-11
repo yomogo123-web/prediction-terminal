@@ -1,10 +1,18 @@
 "use client";
 
+import { useMemo } from "react";
 import { useTerminalStore } from "@/lib/store";
 
 export default function Ticker() {
   const markets = useTerminalStore((s) => s.markets);
-  const tickerItems = markets.filter((m) => m.status === "active");
+
+  // Limit ticker to top 100 markets by volume
+  const tickerItems = useMemo(() => {
+    return [...markets]
+      .filter((m) => m.status === "active")
+      .sort((a, b) => b.volume - a.volume)
+      .slice(0, 100);
+  }, [markets]);
 
   return (
     <div className="h-7 bg-terminal-panel border-t border-terminal-border overflow-hidden relative">
