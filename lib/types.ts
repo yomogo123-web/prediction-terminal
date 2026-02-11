@@ -25,3 +25,95 @@ export interface Market {
 
 export type SortField = "probability" | "volume" | "change24h" | "title";
 export type SortDirection = "asc" | "desc";
+export type RightPanelTab = "watchlist" | "analytics";
+
+export interface CategoryStat {
+  category: Category;
+  volume: number;
+  count: number;
+  avgChange: number;
+}
+
+export interface SourceStat {
+  source: Market["source"];
+  volume: number;
+  count: number;
+}
+
+export interface ProbabilityBucket {
+  label: string;
+  min: number;
+  max: number;
+  count: number;
+}
+
+export interface HotMarket {
+  market: Market;
+  score: number;
+}
+
+export interface SentimentData {
+  bullRatio: number;
+  bearRatio: number;
+  bullCount: number;
+  bearCount: number;
+  neutralCount: number;
+}
+
+export interface VolatilityData {
+  category: Category;
+  stdDev: number;
+  maxAbsMove: number;
+  count: number;
+}
+
+export interface VWAPSourceData {
+  source: Market["source"];
+  vwap: number;
+  avg: number;
+  count: number;
+}
+
+export interface VWAPData {
+  overall: { vwap: number; avg: number; skew: number };
+  bySource: VWAPSourceData[];
+}
+
+export interface ConcentrationData {
+  hhi: number;
+  top5SharePct: number;
+  top5Markets: { title: string; sharePct: number }[];
+  label: "LOW" | "MODERATE" | "HIGH" | "VERY HIGH";
+}
+
+export interface MispricingSignal {
+  market: Market;
+  type: "overconfidence" | "opportunity";
+  score: number;
+}
+
+export interface MomentumData {
+  category: Category;
+  upPct: number;
+  downPct: number;
+  netMomentum: number;
+  upCount: number;
+  downCount: number;
+}
+
+export interface MarketAnalytics {
+  totalVolume: number;
+  marketCount: number;
+  avgProbability: number;
+  activeSources: number;
+  volumeByCategory: CategoryStat[];
+  volumeBySource: SourceStat[];
+  probabilityDistribution: ProbabilityBucket[];
+  hotMarkets: HotMarket[];
+  sentiment: SentimentData;
+  volatilityByCategory: VolatilityData[];
+  vwap: VWAPData;
+  concentration: ConcentrationData;
+  mispricingSignals: MispricingSignal[];
+  categoryMomentum: MomentumData[];
+}
