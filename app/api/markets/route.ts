@@ -141,6 +141,7 @@ async function fetchKalshi(): Promise<Market[]> {
             status: "active",
             endDate: mkt.close_time || "",
             source: "kalshi",
+            clobTokenId: `${event.series_ticker}:${mkt.ticker}`,
             sourceUrl: `https://kalshi.com/markets/${mkt.ticker}`,
           });
         }
@@ -187,6 +188,7 @@ async function fetchManifold(): Promise<Market[]> {
       status: "active",
       endDate: mkt.closeTime ? new Date(mkt.closeTime).toISOString() : "",
       source: "manifold",
+      clobTokenId: mkt.id,
       sourceUrl: mkt.url || `https://manifold.markets/${mkt.creatorUsername}/${mkt.slug}`,
     });
   }
@@ -236,6 +238,7 @@ async function fetchPredictIt(): Promise<Market[]> {
         status: "active",
         endDate: contract.dateEnd !== "NA" ? contract.dateEnd : "",
         source: "predictit",
+        clobTokenId: String(contract.id),
         sourceUrl: mkt.url || "https://www.predictit.org",
       });
     }

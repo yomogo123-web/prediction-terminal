@@ -6,8 +6,16 @@ export async function fetchMarkets(): Promise<Market[]> {
   return res.json();
 }
 
-export async function fetchPriceHistory(clobTokenId: string): Promise<PricePoint[]> {
-  const res = await fetch(`/api/markets/history?token=${encodeURIComponent(clobTokenId)}`);
+export async function fetchPriceHistory(
+  token: string,
+  source: string,
+  probability?: number
+): Promise<PricePoint[]> {
+  const params = new URLSearchParams({ token, source });
+  if (source === "predictit" && probability != null) {
+    params.set("prob", String(probability));
+  }
+  const res = await fetch(`/api/markets/history?${params}`);
   if (!res.ok) throw new Error(`Failed to fetch history: ${res.status}`);
   return res.json();
 }

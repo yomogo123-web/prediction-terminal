@@ -185,11 +185,15 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   loadMarketHistory: async (marketId: string) => {
     const { markets } = get();
     const market = markets.find((m) => m.id === marketId);
-    if (!market || !market.clobTokenId) return;
+    if (!market) return;
     if (market.priceHistory.length > 10) return;
 
+    // Use clobTokenId if available, otherwise extract ID from market ID prefix
+    const token = market.clobTokenId || marketId.replace(/^(poly|kal|man|pit)-/, "");
+    if (!token) return;
+
     try {
-      const history = await fetchPriceHistory(market.clobTokenId);
+      const history = await fetchPriceHistory(token, market.source, market.probability);
       set((state) => ({
         markets: state.markets.map((m) =>
           m.id === marketId ? { ...m, priceHistory: history } : m
