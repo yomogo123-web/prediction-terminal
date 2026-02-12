@@ -48,7 +48,7 @@ export default function Terminal() {
   const mobilePanel = useTerminalStore((s) => s.mobilePanel);
 
   return (
-    <div className="h-screen flex flex-col bg-terminal-bg text-terminal-text font-mono overflow-hidden">
+    <div className="h-[100dvh] flex flex-col bg-terminal-bg text-terminal-text font-mono overflow-hidden">
       {/* Top: Command Bar */}
       <CommandBar />
 
