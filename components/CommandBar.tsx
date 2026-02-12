@@ -21,6 +21,7 @@ export default function CommandBar() {
   const markets = useTerminalStore((s) => s.markets);
   const rightPanelTab = useTerminalStore((s) => s.rightPanelTab);
   const setRightPanelTab = useTerminalStore((s) => s.setRightPanelTab);
+  const setMobilePanel = useTerminalStore((s) => s.setMobilePanel);
   const [showAlertPanel, setShowAlertPanel] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
@@ -61,9 +62,12 @@ export default function CommandBar() {
   return (
     <>
       <div className="flex items-center gap-2 md:gap-3 px-2 md:px-4 py-2 bg-terminal-panel border-b border-terminal-border">
-        <span className="text-terminal-amber font-bold text-sm tracking-wider flex-shrink-0">
+        <button
+          onClick={() => setMobilePanel("table")}
+          className="text-terminal-amber font-bold text-sm tracking-wider flex-shrink-0"
+        >
           PREDICT
-        </span>
+        </button>
         <span className="text-terminal-muted hidden md:inline">│</span>
 
         <div className="flex-1 relative min-w-0">
