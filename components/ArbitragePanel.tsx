@@ -43,7 +43,7 @@ export default function ArbitragePanel() {
         {pairs.map((pair, i) => (
           <div
             key={`${pair.marketA.id}-${pair.marketB.id}`}
-            className="px-3 py-2 border-b border-terminal-border/30 hover:bg-terminal-panel/80"
+            className="px-3 py-2 lg:py-2 min-h-[44px] lg:min-h-0 border-b border-terminal-border/30 hover:bg-terminal-panel/80"
           >
             <div className="flex items-center gap-1 text-[10px] text-terminal-muted mb-1">
               <span className="text-terminal-amber font-bold">#{i + 1}</span>

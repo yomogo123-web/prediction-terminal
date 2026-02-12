@@ -9,7 +9,7 @@ import AlertBell from "./AlertBell";
 import AlertPanel from "./AlertPanel";
 
 const categories: Category[] = ["Politics", "Sports", "Crypto", "Tech", "World Events"];
-const tabCycle: RightPanelTab[] = ["watchlist", "analytics", "arbitrage"];
+const tabCycle: RightPanelTab[] = ["watchlist", "analytics", "arbitrage", "news"];
 
 export default function CommandBar() {
   const { data: session } = useSession();
@@ -59,13 +59,13 @@ export default function CommandBar() {
 
   return (
     <>
-      <div className="flex items-center gap-3 px-4 py-2 bg-terminal-panel border-b border-terminal-border">
-        <span className="text-terminal-amber font-bold text-sm tracking-wider">
+      <div className="flex items-center gap-2 md:gap-3 px-2 md:px-4 py-2 bg-terminal-panel border-b border-terminal-border">
+        <span className="text-terminal-amber font-bold text-sm tracking-wider flex-shrink-0">
           PREDICT
         </span>
-        <span className="text-terminal-muted">│</span>
+        <span className="text-terminal-muted hidden md:inline">│</span>
 
-        <div className="flex-1 relative">
+        <div className="flex-1 relative min-w-0">
           <input
             ref={inputRef}
             type="text"
@@ -77,9 +77,9 @@ export default function CommandBar() {
           <SearchAutocomplete />
         </div>
 
-        <span className="text-terminal-muted">│</span>
+        <span className="text-terminal-muted hidden md:inline">│</span>
 
-        <div className="flex gap-1">
+        <div className="hidden md:flex gap-1">
           {categories.map((cat, i) => (
             <button
               key={cat}
@@ -98,17 +98,17 @@ export default function CommandBar() {
           ))}
         </div>
 
-        <span className="text-terminal-muted">│</span>
+        <span className="text-terminal-muted hidden md:inline">│</span>
 
         <AlertBell onClick={() => setShowAlertPanel(true)} />
 
-        <span className="text-terminal-muted">│</span>
+        <span className="text-terminal-muted hidden lg:inline">│</span>
 
-        <span className="text-terminal-muted text-xs font-mono">
+        <span className="text-terminal-muted text-xs font-mono hidden lg:inline">
           <span className="text-terminal-amber">A</span>:Tab
         </span>
-        <span className="text-terminal-muted">│</span>
-        <span className="text-terminal-muted text-xs font-mono">
+        <span className="text-terminal-muted hidden lg:inline">│</span>
+        <span className="text-terminal-muted text-xs font-mono hidden md:inline">
           {markets.length} MKTs
         </span>
         {(() => {
@@ -116,7 +116,7 @@ export default function CommandBar() {
           const sources = new Set(markets.map((m) => m.source));
           sources.delete("mock");
           return (
-            <span className={`text-xs font-mono font-bold ${
+            <span className={`text-xs font-mono font-bold flex-shrink-0 ${
               dataSource === "live" ? "text-terminal-green" : "text-terminal-amber"
             }`}>
               {dataSource === "live" ? `● LIVE (${sources.size} src)` : "● MOCK"}
@@ -126,13 +126,13 @@ export default function CommandBar() {
 
         {session?.user && (
           <>
-            <span className="text-terminal-muted">│</span>
-            <span className="text-terminal-muted text-xs font-mono truncate max-w-[100px]">
+            <span className="text-terminal-muted hidden md:inline">│</span>
+            <span className="text-terminal-muted text-xs font-mono truncate max-w-[100px] hidden md:inline">
               {session.user.email}
             </span>
             <button
               onClick={() => signOut()}
-              className="text-terminal-red text-xs font-mono hover:text-terminal-red/80"
+              className="text-terminal-red text-xs font-mono hover:text-terminal-red/80 hidden md:inline"
             >
               OUT
             </button>

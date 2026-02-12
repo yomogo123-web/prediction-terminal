@@ -32,7 +32,7 @@ export default function Watchlist() {
               <div
                 key={market.id}
                 onClick={() => selectMarket(market.id)}
-                className={`flex items-center justify-between px-3 py-2 cursor-pointer transition-colors text-xs font-mono ${
+                className={`flex items-center justify-between px-3 py-2 lg:py-2 min-h-[44px] lg:min-h-0 cursor-pointer transition-colors text-xs font-mono ${
                   market.id === selectedMarketId
                     ? "bg-terminal-amber/10"
                     : "hover:bg-terminal-panel/80"
@@ -58,7 +58,7 @@ export default function Watchlist() {
                       e.stopPropagation();
                       toggleWatchlist(market.id);
                     }}
-                    className="text-terminal-muted hover:text-terminal-red transition-colors"
+                    className="text-terminal-muted hover:text-terminal-red transition-colors p-1 lg:p-0 min-w-[28px] min-h-[28px] flex items-center justify-center"
                     title="Remove from watchlist"
                   >
                     ×

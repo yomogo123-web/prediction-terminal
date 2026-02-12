@@ -23,9 +23,32 @@ export interface Market {
   sourceUrl?: string; // Link to market on source platform
 }
 
-export type SortField = "probability" | "volume" | "change24h" | "title";
+export type SortField = "probability" | "volume" | "change24h" | "title" | "edge";
 export type SortDirection = "asc" | "desc";
-export type RightPanelTab = "watchlist" | "analytics" | "arbitrage";
+export type RightPanelTab = "watchlist" | "analytics" | "arbitrage" | "news";
+
+export interface EdgeSignal {
+  marketId: string;
+  edgeScore: number;         // -100 to +100
+  edgeLabel: "STRONG BUY" | "BUY" | "NEUTRAL" | "SELL" | "STRONG SELL";
+  components: {
+    crossSourceDivergence: number | null;
+    volumeAnomaly: number;
+    momentumDivergence: number;
+    priceExtremeness: number;
+  };
+  confidence: number;        // 0-1
+}
+
+export interface NewsItem {
+  id: string;
+  title: string;
+  url: string;
+  source: string;
+  publishedAt: string;
+  correlatedMarketIds: string[];
+  relevanceScore: number;
+}
 
 export interface Alert {
   id: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTerminalStore, useSelectedMarket } from "@/lib/store";
+import { useTerminalStore, useSelectedMarket, useEdgeSignals } from "@/lib/store";
 import { useEffect, useState } from "react";
 
 function formatVolume(v: number): string {
@@ -17,6 +17,9 @@ export default function MarketDetail() {
   const [alertCondition, setAlertCondition] = useState<"above" | "below">("above");
   const [alertThreshold, setAlertThreshold] = useState("");
   const [showAlertForm, setShowAlertForm] = useState(false);
+
+  const edgeSignals = useEdgeSignals();
+  const edge = selectedMarket ? edgeSignals.get(selectedMarket.id) : null;
 
   const isWatched = selectedMarket
     ? watchlist.includes(selectedMarket.id)
@@ -126,6 +129,52 @@ export default function MarketDetail() {
           </div>
         </div>
 
+        {/* Edge Analysis */}
+        {edge && edge.edgeScore !== 0 && (
+          <div className="bg-terminal-bg border border-terminal-border p-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-terminal-muted text-[9px] uppercase tracking-wider">Edge Analysis</span>
+              <span className={`text-xs font-bold font-mono ${
+                edge.edgeScore > 15 ? "text-terminal-green" : edge.edgeScore < -15 ? "text-terminal-red" : "text-terminal-amber"
+              }`}>
+                {edge.edgeLabel} ({edge.edgeScore > 0 ? "+" : ""}{edge.edgeScore})
+              </span>
+            </div>
+            <div className="space-y-1 text-[10px] font-mono">
+              {edge.components.crossSourceDivergence !== null && (
+                <div className="flex justify-between">
+                  <span className="text-terminal-muted">Cross-Source</span>
+                  <span className={edge.components.crossSourceDivergence > 0 ? "text-terminal-green" : "text-terminal-muted"}>
+                    {edge.components.crossSourceDivergence > 0 ? "+" : ""}{edge.components.crossSourceDivergence}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-terminal-muted">Volume Anomaly</span>
+                <span className={edge.components.volumeAnomaly > 0 ? "text-terminal-green" : edge.components.volumeAnomaly < 0 ? "text-terminal-red" : "text-terminal-muted"}>
+                  {edge.components.volumeAnomaly > 0 ? "+" : ""}{edge.components.volumeAnomaly}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-terminal-muted">Momentum Div.</span>
+                <span className={edge.components.momentumDivergence > 0 ? "text-terminal-green" : edge.components.momentumDivergence < 0 ? "text-terminal-red" : "text-terminal-muted"}>
+                  {edge.components.momentumDivergence > 0 ? "+" : ""}{edge.components.momentumDivergence}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-terminal-muted">Price Extreme</span>
+                <span className={edge.components.priceExtremeness > 0 ? "text-terminal-green" : edge.components.priceExtremeness < 0 ? "text-terminal-red" : "text-terminal-muted"}>
+                  {edge.components.priceExtremeness > 0 ? "+" : ""}{edge.components.priceExtremeness}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-terminal-border/50 pt-1 mt-1">
+                <span className="text-terminal-muted">Confidence</span>
+                <span className="text-terminal-amber">{(edge.confidence * 100).toFixed(0)}%</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Source link */}
         {selectedMarket.sourceUrl && (
           <a
@@ -150,7 +199,7 @@ export default function MarketDetail() {
         <div className="flex gap-2">
           <button
             onClick={() => toggleWatchlist(selectedMarket.id)}
-            className={`flex-1 py-2 text-xs font-mono font-bold border transition-colors ${
+            className={`flex-1 py-2 lg:py-2 py-3 text-xs font-mono font-bold border transition-colors min-h-[44px] ${
               isWatched
                 ? "border-terminal-amber text-terminal-amber hover:bg-terminal-amber/10"
                 : "border-terminal-green text-terminal-green hover:bg-terminal-green/10"
@@ -160,7 +209,7 @@ export default function MarketDetail() {
           </button>
           <button
             onClick={() => setShowAlertForm(!showAlertForm)}
-            className="flex-1 py-2 text-xs font-mono font-bold border border-terminal-muted text-terminal-muted hover:border-terminal-text hover:text-terminal-text transition-colors"
+            className="flex-1 py-2 lg:py-2 py-3 text-xs font-mono font-bold border border-terminal-muted text-terminal-muted hover:border-terminal-text hover:text-terminal-text transition-colors min-h-[44px]"
           >
             {showAlertForm ? "✕ CANCEL" : "SET ALERT"}
           </button>

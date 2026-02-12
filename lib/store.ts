@@ -1,8 +1,9 @@
 import { create } from "zustand";
-import { Market, Category, SortField, SortDirection, RightPanelTab, Alert, ArbPair, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData } from "./types";
+import { Market, Category, SortField, SortDirection, RightPanelTab, Alert, ArbPair, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData, EdgeSignal, NewsItem } from "./types";
 import { generateMockMarkets } from "./mock-data";
 import { fetchMarkets, fetchPriceHistory } from "./api";
 import { findArbPairs } from "./arbitrage";
+import { computeEdgeSignals } from "./edge-detection";
 import { useMemo } from "react";
 
 interface TerminalStore {
@@ -20,6 +21,14 @@ interface TerminalStore {
   // Alerts
   alerts: Alert[];
   triggeredAlerts: Alert[];
+
+  // News
+  newsItems: NewsItem[];
+  newsLoading: boolean;
+
+  // Mobile
+  mobilePanel: "table" | "detail" | "tabs";
+  rightPanelOpen: boolean;
 
   initMarkets: () => Promise<void>;
   refreshMarkets: () => Promise<void>;
@@ -40,6 +49,13 @@ interface TerminalStore {
   toggleAlert: (id: string) => void;
   triggerAlerts: (ids: string[]) => void;
   dismissTriggeredAlert: (id: string) => void;
+
+  // News actions
+  fetchNews: () => Promise<void>;
+
+  // Mobile actions
+  setMobilePanel: (panel: "table" | "detail" | "tabs") => void;
+  setRightPanelOpen: (open: boolean) => void;
 }
 
 export const useTerminalStore = create<TerminalStore>((set, get) => ({
@@ -55,6 +71,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   rightPanelTab: "watchlist",
   alerts: [],
   triggeredAlerts: [],
+  newsItems: [],
+  newsLoading: false,
+  mobilePanel: "table",
+  rightPanelOpen: false,
 
   initMarkets: async () => {
     set({ loading: true });
@@ -266,6 +286,31 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       triggeredAlerts: state.triggeredAlerts.filter((a) => a.id !== id),
     }));
   },
+
+  fetchNews: async () => {
+    set({ newsLoading: true });
+    try {
+      const { markets } = get();
+      const titles = markets.slice(0, 20).map((m) => m.title).join(",");
+      const res = await fetch(`/api/news?markets=${encodeURIComponent(titles)}`);
+      if (res.ok) {
+        const items: NewsItem[] = await res.json();
+        set({ newsItems: items, newsLoading: false });
+      } else {
+        set({ newsLoading: false });
+      }
+    } catch {
+      set({ newsLoading: false });
+    }
+  },
+
+  setMobilePanel: (panel) => {
+    set({ mobilePanel: panel });
+  },
+
+  setRightPanelOpen: (open) => {
+    set({ rightPanelOpen: open });
+  },
 }));
 
 // Derived data hooks
@@ -276,6 +321,8 @@ export function useFilteredMarkets(): Market[] {
   const categoryFilter = useTerminalStore((s) => s.categoryFilter);
   const sortField = useTerminalStore((s) => s.sortField);
   const sortDirection = useTerminalStore((s) => s.sortDirection);
+
+  const edgeSignals = useEdgeSignals();
 
   return useMemo(() => {
     let filtered = [...markets];
@@ -308,12 +355,15 @@ export function useFilteredMarkets(): Market[] {
         case "title":
           cmp = a.title.localeCompare(b.title);
           break;
+        case "edge":
+          cmp = (edgeSignals.get(a.id)?.edgeScore || 0) - (edgeSignals.get(b.id)?.edgeScore || 0);
+          break;
       }
       return sortDirection === "asc" ? cmp : -cmp;
     });
 
     return filtered;
-  }, [markets, searchQuery, categoryFilter, sortField, sortDirection]);
+  }, [markets, searchQuery, categoryFilter, sortField, sortDirection, edgeSignals]);
 }
 
 export function useSelectedMarket(): Market | null {
@@ -352,6 +402,14 @@ export function useArbPairs(): ArbPair[] {
 
   return useMemo(() => {
     return findArbPairs(markets);
+  }, [markets]);
+}
+
+export function useEdgeSignals(): Map<string, EdgeSignal> {
+  const markets = useTerminalStore((s) => s.markets);
+
+  return useMemo(() => {
+    return computeEdgeSignals(markets);
   }, [markets]);
 }
 

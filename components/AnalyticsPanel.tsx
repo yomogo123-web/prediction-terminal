@@ -1,6 +1,6 @@
 "use client";
 
-import { useMarketAnalytics, useTerminalStore } from "@/lib/store";
+import { useMarketAnalytics, useTerminalStore, useEdgeSignals } from "@/lib/store";
 import CorrelationMatrix from "./CorrelationMatrix";
 
 function formatVolume(v: number): string {
@@ -25,6 +25,8 @@ const SOURCE_LABELS: Record<string, string> = {
 
 export default function AnalyticsPanel() {
   const analytics = useMarketAnalytics();
+  const edgeSignals = useEdgeSignals();
+  const markets = useTerminalStore((s) => s.markets);
   const selectMarket = useTerminalStore((s) => s.selectMarket);
 
   const maxCatVol = Math.max(...analytics.volumeByCategory.map((c) => c.volume), 1);
@@ -34,7 +36,7 @@ export default function AnalyticsPanel() {
   return (
     <div className="h-full flex flex-col overflow-auto">
       {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-1 p-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-1 p-2">
         <div className="bg-terminal-bg px-2 py-1.5 text-center">
           <div className="text-terminal-muted text-[9px] uppercase tracking-wider">Volume</div>
           <div className="text-terminal-green text-xs font-bold tabular-nums">
@@ -356,6 +358,75 @@ export default function AnalyticsPanel() {
           {analytics.mispricingSignals.length === 0 && (
             <div className="text-terminal-muted">No signals detected</div>
           )}
+        </div>
+      </div>
+
+      {/* Edge Detection Summary */}
+      <div className="px-2 pb-2">
+        <div className="text-terminal-muted text-[9px] uppercase tracking-wider mb-1">
+          Edge Detection
+        </div>
+        <div className="text-[10px] font-mono leading-relaxed">
+          {(() => {
+            const signals = Array.from(edgeSignals.values());
+            const buys = signals.filter((s) => s.edgeScore >= 15).sort((a, b) => b.edgeScore - a.edgeScore);
+            const sells = signals.filter((s) => s.edgeScore <= -15).sort((a, b) => a.edgeScore - b.edgeScore);
+            return (
+              <>
+                {buys.length > 0 && (
+                  <div className="mb-1">
+                    <div className="text-terminal-green text-[9px] uppercase mb-0.5">Top Edges ({buys.length})</div>
+                    {buys.slice(0, 3).map((sig) => {
+                      const m = markets.find((mk) => mk.id === sig.marketId);
+                      if (!m) return null;
+                      return (
+                        <div
+                          key={sig.marketId}
+                          onClick={() => selectMarket(sig.marketId)}
+                          className="flex items-center gap-1 cursor-pointer hover:bg-terminal-panel/80 px-1 -mx-1 rounded"
+                        >
+                          <span className="text-terminal-text truncate flex-1 min-w-0">{m.title}</span>
+                          <span className="text-terminal-green tabular-nums flex-shrink-0 w-[28px] text-right font-bold">
+                            +{sig.edgeScore}
+                          </span>
+                          <span className="text-terminal-muted tabular-nums flex-shrink-0 w-[32px] text-right">
+                            {sig.edgeLabel.split(" ").pop()}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {sells.length > 0 && (
+                  <div>
+                    <div className="text-terminal-red text-[9px] uppercase mb-0.5">Sell Signals ({sells.length})</div>
+                    {sells.slice(0, 3).map((sig) => {
+                      const m = markets.find((mk) => mk.id === sig.marketId);
+                      if (!m) return null;
+                      return (
+                        <div
+                          key={sig.marketId}
+                          onClick={() => selectMarket(sig.marketId)}
+                          className="flex items-center gap-1 cursor-pointer hover:bg-terminal-panel/80 px-1 -mx-1 rounded"
+                        >
+                          <span className="text-terminal-text truncate flex-1 min-w-0">{m.title}</span>
+                          <span className="text-terminal-red tabular-nums flex-shrink-0 w-[28px] text-right font-bold">
+                            {sig.edgeScore}
+                          </span>
+                          <span className="text-terminal-muted tabular-nums flex-shrink-0 w-[32px] text-right">
+                            {sig.edgeLabel.split(" ").pop()}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {buys.length === 0 && sells.length === 0 && (
+                  <div className="text-terminal-muted">No edge signals detected</div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
 

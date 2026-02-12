@@ -13,6 +13,7 @@ export default function Home() {
   const [guestMode, setGuestMode] = useState(false);
   const initMarkets = useTerminalStore((s) => s.initMarkets);
   const refreshMarkets = useTerminalStore((s) => s.refreshMarkets);
+  const fetchNews = useTerminalStore((s) => s.fetchNews);
   const simulatePriceUpdate = useTerminalStore((s) => s.simulatePriceUpdate);
   const markets = useTerminalStore((s) => s.markets);
   const loading = useTerminalStore((s) => s.loading);
@@ -60,6 +61,16 @@ export default function Home() {
     }, 30000);
     return () => clearInterval(interval);
   }, [markets.length, dataSource, refreshMarkets]);
+
+  // Fetch news on init and poll every 5 minutes
+  useEffect(() => {
+    if (markets.length === 0) return;
+    fetchNews();
+    const interval = setInterval(() => {
+      fetchNews();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [markets.length, fetchNews]);
 
   // Check alerts callback
   const runAlertCheck = useCallback(() => {

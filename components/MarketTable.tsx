@@ -1,6 +1,6 @@
 "use client";
 
-import { useTerminalStore, useFilteredMarkets } from "@/lib/store";
+import { useTerminalStore, useFilteredMarkets, useEdgeSignals } from "@/lib/store";
 import { SortField } from "@/lib/types";
 import { useEffect, useRef, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -32,6 +32,7 @@ const ROW_HEIGHT = 32;
 
 export default function MarketTable() {
   const filteredMarkets = useFilteredMarkets();
+  const edgeSignals = useEdgeSignals();
   const selectedMarketId = useTerminalStore((s) => s.selectedMarketId);
   const selectMarket = useTerminalStore((s) => s.selectMarket);
   const setSort = useTerminalStore((s) => s.setSort);
@@ -98,21 +99,26 @@ export default function MarketTable() {
             PROB%{sortIndicator("probability")}
           </button>
         </div>
-        <div className="w-20 px-3 py-2 text-right">
+        <div className="w-20 px-3 py-2 text-right hidden sm:block">
           <button onClick={() => setSort("change24h")} className="hover:text-terminal-text">
             24H CHG{sortIndicator("change24h")}
           </button>
         </div>
-        <div className="w-16 px-1 py-2 text-center">
+        <div className="w-16 px-1 py-2 text-center hidden md:block">
           <span className="text-terminal-muted">7D</span>
         </div>
-        <div className="w-24 px-3 py-2 text-right">
+        <div className="w-24 px-3 py-2 text-right hidden md:block">
           <button onClick={() => setSort("volume")} className="hover:text-terminal-text">
             VOLUME{sortIndicator("volume")}
           </button>
         </div>
-        <div className="w-28 px-3 py-2 text-left">CAT</div>
-        <div className="w-16 px-3 py-2 text-center">SRC</div>
+        <div className="w-28 px-3 py-2 text-left hidden lg:block">CAT</div>
+        <div className="w-16 px-3 py-2 text-center hidden lg:block">SRC</div>
+        <div className="w-16 px-3 py-2 text-right hidden lg:block">
+          <button onClick={() => setSort("edge")} className="hover:text-terminal-text">
+            EDGE{sortIndicator("edge")}
+          </button>
+        </div>
       </div>
 
       {/* Virtualized rows */}
@@ -159,29 +165,40 @@ export default function MarketTable() {
                 {market.probability.toFixed(1)}¢
               </div>
               <div
-                className={`w-20 px-3 text-right tabular-nums ${
+                className={`w-20 px-3 text-right tabular-nums hidden sm:block ${
                   market.change24h >= 0 ? "text-terminal-green" : "text-terminal-red"
                 }`}
               >
                 {market.change24h >= 0 ? "+" : ""}
                 {market.change24h.toFixed(1)}
               </div>
-              <div className="w-16 px-1 flex items-center justify-center">
+              <div className="w-16 px-1 hidden md:flex items-center justify-center">
                 <Sparkline
                   marketId={market.id}
                   probability={market.probability}
                   change24h={market.change24h}
                 />
               </div>
-              <div className="w-24 px-3 text-right text-terminal-muted tabular-nums">
+              <div className="w-24 px-3 text-right text-terminal-muted tabular-nums hidden md:block">
                 {formatVolume(market.volume)}
               </div>
-              <div className={`w-28 px-3 ${categoryColors[market.category] || "text-terminal-muted"}`}>
+              <div className={`w-28 px-3 hidden lg:block ${categoryColors[market.category] || "text-terminal-muted"}`}>
                 {market.category}
               </div>
-              <div className={`w-16 px-3 text-center text-[10px] ${sourceLabels[market.source]?.color || "text-terminal-muted"}`}>
+              <div className={`w-16 px-3 text-center text-[10px] hidden lg:block ${sourceLabels[market.source]?.color || "text-terminal-muted"}`}>
                 {sourceLabels[market.source]?.label || market.source}
               </div>
+              {(() => {
+                const edge = edgeSignals.get(market.id);
+                const score = edge?.edgeScore || 0;
+                return (
+                  <div className={`w-16 px-3 text-right tabular-nums font-bold hidden lg:block ${
+                    score > 15 ? "text-terminal-green" : score < -15 ? "text-terminal-red" : "text-terminal-muted"
+                  }`}>
+                    {score > 0 ? "+" : ""}{score}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
