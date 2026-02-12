@@ -1,6 +1,6 @@
 "use client";
 
-import { useTerminalStore, useSelectedMarket, useEdgeSignals } from "@/lib/store";
+import { useTerminalStore, useSelectedMarket, useEdgeSignals, useAIEdge } from "@/lib/store";
 import { useEffect, useState } from "react";
 
 function formatVolume(v: number): string {
@@ -20,6 +20,10 @@ export default function MarketDetail() {
 
   const edgeSignals = useEdgeSignals();
   const edge = selectedMarket ? edgeSignals.get(selectedMarket.id) : null;
+
+  const aiEdge = useAIEdge();
+  const aiPrediction = selectedMarket ? aiEdge.get(selectedMarket.id) : null;
+  const aiEdgeLoading = useTerminalStore((s) => s.aiEdgeLoading);
 
   const isWatched = selectedMarket
     ? watchlist.includes(selectedMarket.id)
@@ -174,6 +178,68 @@ export default function MarketDetail() {
             </div>
           </div>
         )}
+
+        {/* AI Analysis */}
+        {aiEdgeLoading ? (
+          <div className="bg-terminal-bg border border-terminal-border p-2 animate-pulse">
+            <div className="flex items-center gap-1.5 mb-2">
+              <span className="text-terminal-muted text-[9px] uppercase tracking-wider">AI Analysis</span>
+              <span className="text-[9px] text-terminal-amber">loading...</span>
+            </div>
+            <div className="space-y-1.5">
+              <div className="h-3 bg-terminal-border/50 rounded w-3/4"></div>
+              <div className="h-3 bg-terminal-border/50 rounded w-1/2"></div>
+              <div className="h-3 bg-terminal-border/50 rounded w-full"></div>
+            </div>
+          </div>
+        ) : aiPrediction ? (
+          <div className="bg-terminal-bg border border-terminal-border p-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-terminal-muted text-[9px] uppercase tracking-wider">AI Analysis</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.5 border ${
+                aiPrediction.confidence === "high"
+                  ? "text-terminal-green border-terminal-green/30"
+                  : aiPrediction.confidence === "medium"
+                  ? "text-terminal-amber border-terminal-amber/30"
+                  : "text-terminal-muted border-terminal-border"
+              }`}>
+                {aiPrediction.confidence.toUpperCase()}
+              </span>
+            </div>
+            <div className="space-y-1.5 text-[10px] font-mono">
+              {/* Probability comparison bars */}
+              <div className="space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-terminal-muted">Market</span>
+                  <span className="text-terminal-text">{aiPrediction.marketProbability.toFixed(1)}%</span>
+                </div>
+                <div className="h-1.5 bg-terminal-border/30 rounded-full overflow-hidden">
+                  <div className="h-full bg-terminal-muted/60 rounded-full" style={{ width: `${aiPrediction.marketProbability}%` }} />
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-terminal-amber">AI Est.</span>
+                  <span className="text-terminal-amber">{aiPrediction.aiProbability.toFixed(1)}%</span>
+                </div>
+                <div className="h-1.5 bg-terminal-border/30 rounded-full overflow-hidden">
+                  <div className="h-full bg-terminal-amber/60 rounded-full" style={{ width: `${aiPrediction.aiProbability}%` }} />
+                </div>
+              </div>
+              {/* Divergence */}
+              <div className="flex justify-between border-t border-terminal-border/50 pt-1">
+                <span className="text-terminal-muted">Divergence</span>
+                <span className={`font-bold ${
+                  aiPrediction.divergence > 0 ? "text-terminal-green" : aiPrediction.divergence < 0 ? "text-terminal-red" : "text-terminal-muted"
+                }`}>
+                  {aiPrediction.divergence > 0 ? "+" : ""}{aiPrediction.divergence.toFixed(1)}pp
+                </span>
+              </div>
+              {/* Reasoning */}
+              <div className="border-t border-terminal-border/50 pt-1">
+                <span className="text-terminal-text/70 italic">{aiPrediction.reasoning}</span>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {/* Source link */}
         {selectedMarket.sourceUrl && (

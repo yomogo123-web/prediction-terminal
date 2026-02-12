@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Market, Category, SortField, SortDirection, RightPanelTab, Alert, ArbPair, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData, EdgeSignal, NewsItem } from "./types";
+import { Market, Category, SortField, SortDirection, RightPanelTab, Alert, ArbPair, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData, EdgeSignal, NewsItem, AIEdgePrediction } from "./types";
 import { generateMockMarkets } from "./mock-data";
 import { fetchMarkets, fetchPriceHistory } from "./api";
 import { findArbPairs } from "./arbitrage";
@@ -25,6 +25,10 @@ interface TerminalStore {
   // News
   newsItems: NewsItem[];
   newsLoading: boolean;
+
+  // AI Edge
+  aiEdgePredictions: AIEdgePrediction[];
+  aiEdgeLoading: boolean;
 
   // Mobile
   mobilePanel: "table" | "detail" | "chart" | "tabs";
@@ -53,6 +57,9 @@ interface TerminalStore {
   // News actions
   fetchNews: () => Promise<void>;
 
+  // AI Edge actions
+  fetchAIEdge: () => Promise<void>;
+
   // Mobile actions
   setMobilePanel: (panel: "table" | "detail" | "chart" | "tabs") => void;
   setRightPanelOpen: (open: boolean) => void;
@@ -73,6 +80,8 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   triggeredAlerts: [],
   newsItems: [],
   newsLoading: false,
+  aiEdgePredictions: [],
+  aiEdgeLoading: false,
   mobilePanel: "table",
   rightPanelOpen: false,
 
@@ -304,6 +313,43 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     }
   },
 
+  fetchAIEdge: async () => {
+    set({ aiEdgeLoading: true });
+    try {
+      const { markets } = get();
+      const batch = markets
+        .filter((m) => m.status === "active")
+        .sort((a, b) => b.volume - a.volume)
+        .slice(0, 20)
+        .map((m) => ({
+          id: m.id,
+          title: m.title,
+          description: m.description,
+          category: m.category,
+          probability: m.probability,
+          volume: m.volume,
+          change24h: m.change24h,
+        }));
+      if (batch.length === 0) {
+        set({ aiEdgeLoading: false });
+        return;
+      }
+      const res = await fetch("/api/ai-edge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markets: batch }),
+      });
+      if (res.ok) {
+        const predictions: AIEdgePrediction[] = await res.json();
+        set({ aiEdgePredictions: predictions, aiEdgeLoading: false });
+      } else {
+        set({ aiEdgeLoading: false });
+      }
+    } catch {
+      set({ aiEdgeLoading: false });
+    }
+  },
+
   setMobilePanel: (panel) => {
     set({ mobilePanel: panel });
   },
@@ -411,6 +457,18 @@ export function useEdgeSignals(): Map<string, EdgeSignal> {
   return useMemo(() => {
     return computeEdgeSignals(markets);
   }, [markets]);
+}
+
+export function useAIEdge(): Map<string, AIEdgePrediction> {
+  const predictions = useTerminalStore((s) => s.aiEdgePredictions);
+
+  return useMemo(() => {
+    const map = new Map<string, AIEdgePrediction>();
+    for (const p of predictions) {
+      map.set(p.marketId, p);
+    }
+    return map;
+  }, [predictions]);
 }
 
 const ALL_CATEGORIES: Category[] = ["Politics", "Sports", "Crypto", "Tech", "World Events"];

@@ -144,6 +144,15 @@ export interface MomentumData {
   downCount: number;
 }
 
+export interface AIEdgePrediction {
+  marketId: string;
+  aiProbability: number;    // AI's estimated probability (0-100)
+  marketProbability: number; // current market price
+  divergence: number;        // aiProbability - marketProbability
+  confidence: "low" | "medium" | "high";
+  reasoning: string;         // one-line explanation
+}
+
 export interface MarketAnalytics {
   totalVolume: number;
   marketCount: number;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTerminalStore, useFilteredMarkets, useEdgeSignals } from "@/lib/store";
+import { useTerminalStore, useFilteredMarkets, useEdgeSignals, useAIEdge } from "@/lib/store";
 import { SortField } from "@/lib/types";
 import { useEffect, useRef, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -34,6 +34,7 @@ const ROW_HEIGHT = 44;
 export default function MarketTable() {
   const filteredMarkets = useFilteredMarkets();
   const edgeSignals = useEdgeSignals();
+  const aiEdge = useAIEdge();
   const selectedMarketId = useTerminalStore((s) => s.selectedMarketId);
   const selectMarket = useTerminalStore((s) => s.selectMarket);
   const setSort = useTerminalStore((s) => s.setSort);
@@ -120,6 +121,9 @@ export default function MarketTable() {
           <button onClick={() => setSort("volume")} className="hover:text-terminal-text">
             VOLUME{sortIndicator("volume")}
           </button>
+        </div>
+        <div className="w-14 px-2 py-2 text-right hidden md:block">
+          <span className="text-terminal-muted">AI</span>
         </div>
         <div className="w-28 px-3 py-2 text-left hidden lg:block">CAT</div>
         <div className="w-16 px-3 py-2 text-center hidden lg:block">SRC</div>
@@ -210,6 +214,17 @@ export default function MarketTable() {
               <div className="w-24 px-3 text-right text-terminal-muted tabular-nums hidden md:block">
                 {formatVolume(market.volume)}
               </div>
+              {(() => {
+                const ai = aiEdge.get(market.id);
+                const div = ai ? Math.round(ai.divergence) : null;
+                return (
+                  <div className={`w-14 px-2 text-right tabular-nums text-[11px] font-bold hidden md:block ${
+                    div === null ? "text-terminal-muted" : div > 0 ? "text-terminal-green" : div < 0 ? "text-terminal-red" : "text-terminal-muted"
+                  }`}>
+                    {div === null ? "\u00b7" : `${div > 0 ? "+" : ""}${div}`}
+                  </div>
+                );
+              })()}
               <div className={`w-28 px-3 hidden lg:block ${categoryColors[market.category] || "text-terminal-muted"}`}>
                 {market.category}
               </div>

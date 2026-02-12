@@ -14,6 +14,7 @@ export default function Home() {
   const initMarkets = useTerminalStore((s) => s.initMarkets);
   const refreshMarkets = useTerminalStore((s) => s.refreshMarkets);
   const fetchNews = useTerminalStore((s) => s.fetchNews);
+  const fetchAIEdge = useTerminalStore((s) => s.fetchAIEdge);
   const simulatePriceUpdate = useTerminalStore((s) => s.simulatePriceUpdate);
   const markets = useTerminalStore((s) => s.markets);
   const loading = useTerminalStore((s) => s.loading);
@@ -71,6 +72,16 @@ export default function Home() {
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [markets.length, fetchNews]);
+
+  // Fetch AI edge predictions on init and poll every 15 minutes
+  useEffect(() => {
+    if (markets.length === 0) return;
+    fetchAIEdge();
+    const interval = setInterval(() => {
+      fetchAIEdge();
+    }, 15 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [markets.length, fetchAIEdge]);
 
   // Check alerts callback
   const runAlertCheck = useCallback(() => {
