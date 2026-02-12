@@ -199,7 +199,7 @@ export default function MarketDetail() {
         <div className="flex gap-2">
           <button
             onClick={() => toggleWatchlist(selectedMarket.id)}
-            className={`flex-1 py-2 lg:py-2 py-3 text-xs font-mono font-bold border transition-colors min-h-[44px] ${
+            className={`flex-1 py-3 lg:py-2 text-xs font-mono font-bold border transition-colors min-h-[44px] ${
               isWatched
                 ? "border-terminal-amber text-terminal-amber hover:bg-terminal-amber/10"
                 : "border-terminal-green text-terminal-green hover:bg-terminal-green/10"
@@ -209,7 +209,7 @@ export default function MarketDetail() {
           </button>
           <button
             onClick={() => setShowAlertForm(!showAlertForm)}
-            className="flex-1 py-2 lg:py-2 py-3 text-xs font-mono font-bold border border-terminal-muted text-terminal-muted hover:border-terminal-text hover:text-terminal-text transition-colors min-h-[44px]"
+            className="flex-1 py-3 lg:py-2 text-xs font-mono font-bold border border-terminal-muted text-terminal-muted hover:border-terminal-text hover:text-terminal-text transition-colors min-h-[44px]"
           >
             {showAlertForm ? "✕ CANCEL" : "SET ALERT"}
           </button>
@@ -217,30 +217,32 @@ export default function MarketDetail() {
 
         {/* Inline alert form */}
         {showAlertForm && (
-          <div className="flex gap-2 items-center">
+          <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
             <select
               value={alertCondition}
               onChange={(e) => setAlertCondition(e.target.value as "above" | "below")}
-              className="bg-terminal-bg border border-terminal-border px-2 py-1 text-xs text-terminal-text focus:outline-none focus:border-terminal-amber"
+              className="bg-terminal-bg border border-terminal-border px-2 py-1 text-xs text-terminal-text focus:outline-none focus:border-terminal-amber min-h-[44px]"
             >
               <option value="above">Above</option>
               <option value="below">Below</option>
             </select>
-            <input
-              type="number"
-              value={alertThreshold}
-              onChange={(e) => setAlertThreshold(e.target.value)}
-              placeholder="50"
-              className="bg-terminal-bg border border-terminal-border px-2 py-1 text-xs text-terminal-text w-16 focus:outline-none focus:border-terminal-amber"
-            />
-            <span className="text-terminal-muted text-xs">¢</span>
-            <button
-              onClick={handleAddAlert}
-              disabled={!alertThreshold}
-              className="px-3 py-1 text-xs bg-terminal-amber text-terminal-bg font-bold disabled:opacity-30"
-            >
-              SET
-            </button>
+            <div className="flex gap-2 items-center">
+              <input
+                type="number"
+                value={alertThreshold}
+                onChange={(e) => setAlertThreshold(e.target.value)}
+                placeholder="50"
+                className="bg-terminal-bg border border-terminal-border px-2 py-1 text-xs text-terminal-text w-16 focus:outline-none focus:border-terminal-amber min-h-[44px] flex-1 sm:flex-none"
+              />
+              <span className="text-terminal-muted text-xs">¢</span>
+              <button
+                onClick={handleAddAlert}
+                disabled={!alertThreshold}
+                className="px-3 py-1 text-xs bg-terminal-amber text-terminal-bg font-bold disabled:opacity-30 min-h-[44px]"
+              >
+                SET
+              </button>
+            </div>
           </div>
         )}
       </div>

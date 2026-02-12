@@ -2,7 +2,7 @@
 
 import { useTerminalStore } from "@/lib/store";
 import { Category, RightPanelTab } from "@/lib/types";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
 import SearchAutocomplete from "./SearchAutocomplete";
 import AlertBell from "./AlertBell";
@@ -22,6 +22,7 @@ export default function CommandBar() {
   const rightPanelTab = useTerminalStore((s) => s.rightPanelTab);
   const setRightPanelTab = useTerminalStore((s) => s.setRightPanelTab);
   const [showAlertPanel, setShowAlertPanel] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -76,6 +77,18 @@ export default function CommandBar() {
           />
           <SearchAutocomplete />
         </div>
+
+        {/* Mobile filter toggle */}
+        <button
+          onClick={() => setShowMobileFilters(!showMobileFilters)}
+          className={`md:hidden flex-shrink-0 px-2 py-1 text-xs font-mono border transition-colors min-h-[36px] ${
+            categoryFilter
+              ? "border-terminal-amber text-terminal-amber"
+              : "border-terminal-border text-terminal-muted hover:text-terminal-text"
+          }`}
+        >
+          {categoryFilter ? categoryFilter.slice(0, 4).toUpperCase() : "Filter"}
+        </button>
 
         <span className="text-terminal-muted hidden md:inline">│</span>
 
@@ -139,6 +152,39 @@ export default function CommandBar() {
           </>
         )}
       </div>
+
+      {/* Mobile category filter row */}
+      {showMobileFilters && (
+        <div className="md:hidden flex gap-1 px-2 py-2 bg-terminal-panel border-b border-terminal-border overflow-x-auto">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => {
+                setCategoryFilter(categoryFilter === cat ? null : cat);
+                setShowMobileFilters(false);
+              }}
+              className={`flex-shrink-0 px-3 py-1.5 text-xs font-mono transition-colors min-h-[36px] ${
+                categoryFilter === cat
+                  ? "bg-terminal-amber text-terminal-bg"
+                  : "text-terminal-muted border border-terminal-border hover:text-terminal-text"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+          {categoryFilter && (
+            <button
+              onClick={() => {
+                setCategoryFilter(null);
+                setShowMobileFilters(false);
+              }}
+              className="flex-shrink-0 px-3 py-1.5 text-xs font-mono text-terminal-red border border-terminal-border min-h-[36px]"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
       {showAlertPanel && <AlertPanel onClose={() => setShowAlertPanel(false)} />}
     </>

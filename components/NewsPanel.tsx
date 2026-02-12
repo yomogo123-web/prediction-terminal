@@ -71,7 +71,7 @@ export default function NewsPanel() {
         {newsItems.map((item) => (
           <div
             key={item.id}
-            className="px-3 py-2 border-b border-terminal-border/30 hover:bg-terminal-panel/80"
+            className="px-3 py-2 border-b border-terminal-border/30 hover:bg-terminal-panel/80 min-h-[48px]"
           >
             <div className="flex items-start gap-2">
               <span className="text-terminal-muted text-[9px] flex-shrink-0 w-[40px] tabular-nums font-mono pt-0.5">
@@ -96,7 +96,7 @@ export default function NewsPanel() {
                   {item.title}
                 </a>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[9px] font-mono px-1 py-0.5 bg-terminal-bg border border-terminal-border text-terminal-muted">
+                  <span className="text-[10px] font-mono px-2 py-1 bg-terminal-bg border border-terminal-border text-terminal-muted">
                     {item.source}
                   </span>
                   {item.correlatedMarketIds.slice(0, 2).map((mid) => {
@@ -107,7 +107,7 @@ export default function NewsPanel() {
                       <button
                         key={mid}
                         onClick={() => selectMarket(m.id)}
-                        className="text-[9px] font-mono px-1 py-0.5 bg-terminal-amber/10 border border-terminal-amber/30 text-terminal-amber hover:bg-terminal-amber/20 transition-colors truncate max-w-[120px]"
+                        className="text-[10px] font-mono px-2 py-1 bg-terminal-amber/10 border border-terminal-amber/30 text-terminal-amber hover:bg-terminal-amber/20 transition-colors truncate max-w-[120px]"
                       >
                         {m.title.slice(0, 25)}{m.title.length > 25 ? "..." : ""}
                       </button>

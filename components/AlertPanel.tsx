@@ -33,7 +33,7 @@ export default function AlertPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 font-mono">
-      <div className="bg-terminal-panel border border-terminal-border w-[500px] max-w-[90vw] max-h-[80vh] flex flex-col">
+      <div className="bg-terminal-panel border border-terminal-border w-[500px] max-w-[90vw] max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between px-4 py-2 border-b border-terminal-border">
           <span className="text-terminal-amber text-xs font-bold uppercase tracking-wider">
             Alert Manager
@@ -49,33 +49,35 @@ export default function AlertPanel({ onClose }: { onClose: () => void }) {
             <div className="text-[10px] text-terminal-muted uppercase tracking-wider">
               New Alert for: <span className="text-terminal-text">{selectedMarket.title.slice(0, 50)}</span>
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
               <select
                 value={condition}
                 onChange={(e) => setCondition(e.target.value as "above" | "below" | "change")}
-                className="bg-terminal-bg border border-terminal-border px-2 py-1 text-xs text-terminal-text focus:outline-none focus:border-terminal-amber"
+                className="bg-terminal-bg border border-terminal-border px-2 py-1 text-xs text-terminal-text focus:outline-none focus:border-terminal-amber min-h-[44px]"
               >
                 <option value="above">Prob Above</option>
                 <option value="below">Prob Below</option>
                 <option value="change">24h Change {">="}</option>
               </select>
-              <input
-                type="number"
-                value={threshold}
-                onChange={(e) => setThreshold(e.target.value)}
-                placeholder={condition === "change" ? "5" : "50"}
-                className="bg-terminal-bg border border-terminal-border px-2 py-1 text-xs text-terminal-text w-20 focus:outline-none focus:border-terminal-amber"
-              />
-              <span className="text-terminal-muted text-xs">
-                {condition === "change" ? "pts" : "¢"}
-              </span>
-              <button
-                onClick={handleAdd}
-                disabled={!threshold}
-                className="px-3 py-1 text-xs bg-terminal-amber text-terminal-bg font-bold disabled:opacity-30 hover:bg-terminal-amber/90"
-              >
-                ADD
-              </button>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="number"
+                  value={threshold}
+                  onChange={(e) => setThreshold(e.target.value)}
+                  placeholder={condition === "change" ? "5" : "50"}
+                  className="bg-terminal-bg border border-terminal-border px-2 py-1 text-xs text-terminal-text w-20 focus:outline-none focus:border-terminal-amber min-h-[44px] flex-1 sm:flex-none"
+                />
+                <span className="text-terminal-muted text-xs">
+                  {condition === "change" ? "pts" : "¢"}
+                </span>
+                <button
+                  onClick={handleAdd}
+                  disabled={!threshold}
+                  className="px-3 py-1 text-xs bg-terminal-amber text-terminal-bg font-bold disabled:opacity-30 hover:bg-terminal-amber/90 min-h-[44px]"
+                >
+                  ADD
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -90,13 +92,13 @@ export default function AlertPanel({ onClose }: { onClose: () => void }) {
             alerts.map((alert) => (
               <div
                 key={alert.id}
-                className={`flex items-center gap-2 px-2 py-1.5 text-xs border-b border-terminal-border/30 ${
+                className={`flex items-center gap-2 px-2 py-1.5 text-xs border-b border-terminal-border/30 min-h-[44px] ${
                   alert.active ? "text-terminal-text" : "text-terminal-muted opacity-50"
                 }`}
               >
                 <button
                   onClick={() => toggleAlert(alert.id)}
-                  className={`flex-shrink-0 ${alert.active ? "text-terminal-green" : "text-terminal-muted"}`}
+                  className={`flex-shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center ${alert.active ? "text-terminal-green" : "text-terminal-muted"}`}
                 >
                   {alert.active ? "●" : "○"}
                 </button>
@@ -109,7 +111,7 @@ export default function AlertPanel({ onClose }: { onClose: () => void }) {
                 </span>
                 <button
                   onClick={() => removeAlert(alert.id)}
-                  className="flex-shrink-0 text-terminal-red hover:text-terminal-red/80"
+                  className="flex-shrink-0 text-terminal-red hover:text-terminal-red/80 min-w-[36px] min-h-[36px] flex items-center justify-center"
                 >
                   ✕
                 </button>

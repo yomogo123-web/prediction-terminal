@@ -27,7 +27,7 @@ interface TerminalStore {
   newsLoading: boolean;
 
   // Mobile
-  mobilePanel: "table" | "detail" | "tabs";
+  mobilePanel: "table" | "detail" | "chart" | "tabs";
   rightPanelOpen: boolean;
 
   initMarkets: () => Promise<void>;
@@ -54,7 +54,7 @@ interface TerminalStore {
   fetchNews: () => Promise<void>;
 
   // Mobile actions
-  setMobilePanel: (panel: "table" | "detail" | "tabs") => void;
+  setMobilePanel: (panel: "table" | "detail" | "chart" | "tabs") => void;
   setRightPanelOpen: (open: boolean) => void;
 }
 

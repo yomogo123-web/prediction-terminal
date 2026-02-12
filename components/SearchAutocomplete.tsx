@@ -82,7 +82,7 @@ export default function SearchAutocomplete() {
   if (!isOpen || results.length === 0) return null;
 
   return (
-    <div className="absolute top-full left-0 right-0 mt-0.5 bg-terminal-panel border border-terminal-border z-50 max-h-64 overflow-auto shadow-lg">
+    <div className="absolute top-full left-0 right-0 mt-0.5 bg-terminal-panel border border-terminal-border z-50 max-h-[50vh] overflow-auto shadow-lg">
       {results.map((result, i) => (
         <div
           key={result.market.id}
@@ -91,7 +91,7 @@ export default function SearchAutocomplete() {
             handleSelect(result.market.id);
           }}
           onMouseEnter={() => setSelectedIdx(i)}
-          className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono cursor-pointer ${
+          className={`flex items-center gap-2 px-3 py-2.5 text-xs font-mono cursor-pointer ${
             i === selectedIdx
               ? "bg-terminal-amber/10 text-terminal-text"
               : "text-terminal-muted hover:bg-terminal-panel/80"

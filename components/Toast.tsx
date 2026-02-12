@@ -44,7 +44,7 @@ export default function Toast() {
   };
 
   return (
-    <div className="fixed bottom-10 right-4 z-50 flex flex-col gap-2 font-mono">
+    <div className="fixed bottom-20 lg:bottom-10 right-4 z-50 flex flex-col gap-2 font-mono">
       {triggeredAlerts.slice(-3).map((alert) => (
         <div
           key={alert.id}

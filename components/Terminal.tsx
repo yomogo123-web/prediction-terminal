@@ -97,6 +97,16 @@ export default function Terminal() {
             <MarketDetail />
           </div>
         )}
+        {mobilePanel === "chart" && (
+          <div className="flex-1 overflow-auto">
+            <div className="h-[45%] min-h-[200px] border-b border-terminal-border">
+              <MarketChart />
+            </div>
+            <div className="h-[55%] min-h-[200px]">
+              <TrendingPanel />
+            </div>
+          </div>
+        )}
         {mobilePanel === "tabs" && (
           <div className="flex-1 overflow-hidden flex flex-col">
             <TabBar rightPanelTab={rightPanelTab} setRightPanelTab={setRightPanelTab} />

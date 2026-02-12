@@ -14,7 +14,12 @@ body {
   background-color: #0a0a0a;
   color: #e0e0e0;
   font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Consolas', monospace;
-  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  body {
+    overflow: hidden;
+  }
 }
 
 /* Scrollbar styling */

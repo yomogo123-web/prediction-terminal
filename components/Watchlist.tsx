@@ -58,7 +58,7 @@ export default function Watchlist() {
                       e.stopPropagation();
                       toggleWatchlist(market.id);
                     }}
-                    className="text-terminal-muted hover:text-terminal-red transition-colors p-1 lg:p-0 min-w-[28px] min-h-[28px] flex items-center justify-center"
+                    className="text-terminal-muted hover:text-terminal-red transition-colors p-1 lg:p-0 min-w-[36px] min-h-[36px] flex items-center justify-center"
                     title="Remove from watchlist"
                   >
                     ×
