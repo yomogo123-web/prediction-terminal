@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useTerminalStore } from "@/lib/store";
+import { hapticNotification } from "@/lib/capacitor";
 
 export default function Toast() {
   const triggeredAlerts = useTerminalStore((s) => s.triggeredAlerts);
@@ -17,6 +18,12 @@ export default function Toast() {
     }, 5000);
     return () => clearTimeout(timer);
   }, [triggeredAlerts, dismissTriggeredAlert]);
+
+  // Haptic on new alert
+  useEffect(() => {
+    if (triggeredAlerts.length === 0) return;
+    hapticNotification('warning');
+  }, [triggeredAlerts.length]);
 
   // Beep on new alert
   useEffect(() => {

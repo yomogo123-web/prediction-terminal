@@ -8,13 +8,16 @@ generator client {
 }
 
 model User {
-  id             String      @id @default(cuid())
-  email          String      @unique
+  id             String               @id @default(cuid())
+  email          String               @unique
   hashedPassword String
   name           String?
-  createdAt      DateTime    @default(now())
+  createdAt      DateTime             @default(now())
   watchlists     Watchlist[]
   alerts         Alert[]
+  credentials    PlatformCredential[]
+  orders         Order[]
+  positions      Position[]
 }
 
 model Watchlist {
@@ -87,4 +90,57 @@ model SmartMoneySnapshot {
   @@index([conditionId])
   @@index([proxyWallet])
   @@index([snapshotAt])
+}
+
+model PlatformCredential {
+  id               String   @id @default(cuid())
+  userId           String
+  platform         String   // "polymarket" | "kalshi" | "manifold"
+  encryptedPayload String   // AES-256-GCM encrypted JSON
+  iv               String
+  tag              String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform])
+}
+
+model Order {
+  id              String   @id @default(cuid())
+  userId          String
+  marketId        String
+  platform        String
+  platformOrderId String?
+  side            String   // "yes" | "no"
+  type            String   // "market" | "limit"
+  amount          Float
+  shares          Float?
+  price           Float?
+  fillPrice       Float?
+  status          String   @default("pending")
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model Position {
+  id           String   @id @default(cuid())
+  userId       String
+  marketId     String
+  platform     String
+  side         String
+  shares       Float
+  avgCostBasis Float
+  currentPrice Float
+  realizedPnl  Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, marketId, side])
 }

@@ -6,6 +6,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import Sparkline from "./Sparkline";
 import { useIsMobile } from "@/lib/hooks/use-media-query";
+import { hapticLight } from "@/lib/capacitor";
 
 function formatVolume(v: number): string {
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
@@ -157,6 +158,7 @@ export default function MarketTable() {
             <div
               key={market.id}
               onClick={() => {
+                hapticLight();
                 selectMarket(market.id);
                 if (isMobile) setMobilePanel("detail");
               }}

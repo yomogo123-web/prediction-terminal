@@ -1,6 +1,7 @@
 "use client";
 
 import { useTerminalStore } from "@/lib/store";
+import { hapticLight } from "@/lib/capacitor";
 
 export default function MobileNav() {
   const mobilePanel = useTerminalStore((s) => s.mobilePanel);
@@ -19,7 +20,7 @@ export default function MobileNav() {
       {tabs.map((tab) => (
         <button
           key={tab.id}
-          onClick={() => setMobilePanel(tab.id)}
+          onClick={() => { hapticLight(); setMobilePanel(tab.id); }}
           className={`flex-1 py-3 text-xs font-mono font-bold tracking-wider transition-colors min-h-[48px] relative ${
             mobilePanel === tab.id
               ? "text-terminal-amber border-t-2 border-terminal-amber bg-terminal-bg"

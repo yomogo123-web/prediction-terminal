@@ -9,6 +9,9 @@ import AnalyticsPanel from "./AnalyticsPanel";
 import ArbitragePanel from "./ArbitragePanel";
 import NewsPanel from "./NewsPanel";
 import AITrackPanel from "./AITrackPanel";
+import TradingPanel from "./TradingPanel";
+import TradeConfirmDialog from "./TradeConfirmDialog";
+import CredentialsModal from "./CredentialsModal";
 import Ticker from "./Ticker";
 import TrendingPanel from "./TrendingPanel";
 import MobileNav from "./MobileNav";
@@ -21,13 +24,14 @@ function TabContent({ tab }: { tab: RightPanelTab }) {
   if (tab === "analytics") return <AnalyticsPanel />;
   if (tab === "arbitrage") return <ArbitragePanel />;
   if (tab === "aitrack") return <AITrackPanel />;
+  if (tab === "trading") return <TradingPanel />;
   return <NewsPanel />;
 }
 
 function TabBar({ rightPanelTab, setRightPanelTab }: { rightPanelTab: RightPanelTab; setRightPanelTab: (tab: RightPanelTab) => void }) {
   return (
     <div className="flex border-b border-terminal-border">
-      {(["watchlist", "analytics", "arbitrage", "news", "aitrack"] as RightPanelTab[]).map((tab) => (
+      {(["watchlist", "analytics", "arbitrage", "news", "aitrack", "trading"] as RightPanelTab[]).map((tab) => (
         <button
           key={tab}
           onClick={() => setRightPanelTab(tab)}
@@ -37,7 +41,7 @@ function TabBar({ rightPanelTab, setRightPanelTab }: { rightPanelTab: RightPanel
               : "text-terminal-muted hover:text-terminal-text"
           }`}
         >
-          {tab === "watchlist" ? "★ Watch" : tab === "analytics" ? "◆ Analytics" : tab === "arbitrage" ? "⇄ Arb" : tab === "news" ? "◎ News" : "⊙ AI Track"}
+          {tab === "watchlist" ? "★ Watch" : tab === "analytics" ? "◆ Analytics" : tab === "arbitrage" ? "⇄ Arb" : tab === "news" ? "◎ News" : tab === "aitrack" ? "⊙ AI Track" : "$ Trade"}
         </button>
       ))}
     </div>
@@ -129,6 +133,12 @@ export default function Terminal() {
 
       {/* Toast overlay */}
       <Toast />
+
+      {/* Trade confirmation dialog */}
+      <TradeConfirmDialog />
+
+      {/* Credentials modal */}
+      <CredentialsModal />
     </div>
   );
 }

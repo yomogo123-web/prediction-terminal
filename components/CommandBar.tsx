@@ -9,7 +9,7 @@ import AlertBell from "./AlertBell";
 import AlertPanel from "./AlertPanel";
 
 const categories: Category[] = ["Politics", "Sports", "Crypto", "Tech", "World Events"];
-const tabCycle: RightPanelTab[] = ["watchlist", "analytics", "arbitrage", "news", "aitrack"];
+const tabCycle: RightPanelTab[] = ["watchlist", "analytics", "arbitrage", "news", "aitrack", "trading"];
 
 export default function CommandBar() {
   const { data: session } = useSession();
@@ -148,6 +148,13 @@ export default function CommandBar() {
         {session?.user && (
           <>
             <span className="text-terminal-muted hidden md:inline">│</span>
+            <button
+              onClick={() => useTerminalStore.getState().setShowCredentialsModal(true)}
+              className="text-terminal-muted text-xs font-mono hover:text-terminal-amber transition-colors hidden md:inline"
+              title="Configure API credentials"
+            >
+              [CFG]
+            </button>
             <span className="text-terminal-muted text-xs font-mono truncate max-w-[100px] hidden md:inline">
               {session.user.email}
             </span>

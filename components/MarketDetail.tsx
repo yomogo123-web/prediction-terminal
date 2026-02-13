@@ -2,6 +2,9 @@
 
 import { useTerminalStore, useSelectedMarket, useEdgeSignals, useAIEdge, useSmartMoneyMap } from "@/lib/store";
 import { useEffect, useState } from "react";
+import { hapticMedium } from "@/lib/capacitor";
+import OrderBookPanel from "./OrderBookPanel";
+import TradePanel from "./TradePanel";
 
 function formatVolume(v: number): string {
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
@@ -371,7 +374,7 @@ export default function MarketDetail() {
         {/* Action buttons */}
         <div className="flex gap-2">
           <button
-            onClick={() => toggleWatchlist(selectedMarket.id)}
+            onClick={() => { hapticMedium(); toggleWatchlist(selectedMarket.id); }}
             className={`flex-1 py-3 lg:py-2 text-xs font-mono font-bold border transition-colors min-h-[44px] ${
               isWatched
                 ? "border-terminal-amber text-terminal-amber hover:bg-terminal-amber/10"
@@ -418,6 +421,12 @@ export default function MarketDetail() {
             </div>
           </div>
         )}
+
+        {/* Order Book */}
+        <OrderBookPanel />
+
+        {/* Trade Entry */}
+        <TradePanel />
       </div>
     </div>
   );

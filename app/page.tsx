@@ -7,6 +7,7 @@ import { checkAlerts } from "@/lib/alert-checker";
 import { usePolymarketWS } from "@/lib/hooks/use-polymarket-ws";
 import Terminal from "@/components/Terminal";
 import AuthModal from "@/components/AuthModal";
+import { initPushNotifications, setupPushListeners } from "@/lib/push-notifications";
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -19,6 +20,9 @@ export default function Home() {
   const fetchAITrack = useTerminalStore((s) => s.fetchAITrack);
   const checkResolutions = useTerminalStore((s) => s.checkResolutions);
   const fetchSmartMoney = useTerminalStore((s) => s.fetchSmartMoney);
+  const fetchCredentialStatuses = useTerminalStore((s) => s.fetchCredentialStatuses);
+  const fetchOrders = useTerminalStore((s) => s.fetchOrders);
+  const fetchPositions = useTerminalStore((s) => s.fetchPositions);
   const simulatePriceUpdate = useTerminalStore((s) => s.simulatePriceUpdate);
   const markets = useTerminalStore((s) => s.markets);
   const loading = useTerminalStore((s) => s.loading);
@@ -33,6 +37,13 @@ export default function Home() {
   // Connect to Polymarket WebSocket for real-time prices
   usePolymarketWS();
 
+  // Initialize push notifications when logged in
+  useEffect(() => {
+    if (!session) return;
+    initPushNotifications();
+    setupPushListeners();
+  }, [session]);
+
   // Show auth modal on first load if not authenticated
   useEffect(() => {
     if (status === "loading") return;
@@ -41,7 +52,7 @@ export default function Home() {
     }
   }, [status, session, guestMode]);
 
-  // Hydrate watchlist and alerts from DB on login
+  // Hydrate watchlist, alerts, and trading data from DB on login
   useEffect(() => {
     if (!session) return;
     fetch("/api/watchlist")
@@ -52,7 +63,10 @@ export default function Home() {
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setAlerts(data); })
       .catch(() => {});
-  }, [session, setWatchlist, setAlerts]);
+    fetchCredentialStatuses();
+    fetchOrders();
+    fetchPositions();
+  }, [session, setWatchlist, setAlerts, fetchCredentialStatuses, fetchOrders, fetchPositions]);
 
   // Initialize markets on mount
   useEffect(() => {

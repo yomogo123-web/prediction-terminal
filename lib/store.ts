@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import { Market, Category, SortField, SortDirection, RightPanelTab, Alert, ArbPair, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData, EdgeSignal, NewsItem, AIEdgePrediction, AITrackStats, SmartMoneySignal } from "./types";
+import { OrderBook, TradeEstimate, TradeRequest, TradeSide, OrderType, OrderRecord, PositionRecord, CredentialStatus } from "./trading-types";
 import { generateMockMarkets } from "./mock-data";
 import { fetchMarkets, fetchPriceHistory } from "./api";
 import { findArbPairs } from "./arbitrage";
+import { hapticMedium } from "./capacitor";
 import { computeEdgeSignals } from "./edge-detection";
 import { useMemo } from "react";
 
@@ -83,6 +85,36 @@ interface TerminalStore {
   // Mobile actions
   setMobilePanel: (panel: "table" | "detail" | "chart" | "tabs") => void;
   setRightPanelOpen: (open: boolean) => void;
+
+  // Trading state
+  orderBook: OrderBook | null;
+  orderBookLoading: boolean;
+  tradeEstimate: TradeEstimate | null;
+  orders: OrderRecord[];
+  positions: PositionRecord[];
+  credentialStatuses: CredentialStatus[];
+  orderFormSide: TradeSide;
+  orderFormType: OrderType;
+  orderFormAmount: string;
+  orderFormLimitPrice: string;
+  tradeSubmitting: boolean;
+  tradeConfirmPending: TradeRequest | null;
+  showCredentialsModal: boolean;
+
+  // Trading actions
+  fetchOrderBook: (marketId: string, source: string, clobTokenId?: string) => Promise<void>;
+  fetchTradeEstimate: (req: { marketId: string; side: TradeSide; type: OrderType; amount: number; limitPrice?: number; source: string; clobTokenId?: string }) => Promise<void>;
+  submitOrder: (req: { marketId: string; side: TradeSide; type: OrderType; amount: number; limitPrice?: number; source: string }) => Promise<void>;
+  cancelOrder: (orderId: string) => Promise<void>;
+  fetchOrders: () => Promise<void>;
+  fetchPositions: () => Promise<void>;
+  fetchCredentialStatuses: () => Promise<void>;
+  setOrderFormSide: (side: TradeSide) => void;
+  setOrderFormType: (type: OrderType) => void;
+  setOrderFormAmount: (amount: string) => void;
+  setOrderFormLimitPrice: (price: string) => void;
+  setTradeConfirmPending: (req: TradeRequest | null) => void;
+  setShowCredentialsModal: (show: boolean) => void;
 }
 
 export const useTerminalStore = create<TerminalStore>((set, get) => ({
@@ -109,6 +141,21 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   wsConnected: false,
   mobilePanel: "table",
   rightPanelOpen: false,
+
+  // Trading initial state
+  orderBook: null,
+  orderBookLoading: false,
+  tradeEstimate: null,
+  orders: [],
+  positions: [],
+  credentialStatuses: [],
+  orderFormSide: "yes",
+  orderFormType: "market",
+  orderFormAmount: "",
+  orderFormLimitPrice: "",
+  tradeSubmitting: false,
+  tradeConfirmPending: null,
+  showCredentialsModal: false,
 
   initMarkets: async () => {
     set({ loading: true });
@@ -181,6 +228,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
 
   toggleWatchlist: (id: string) => {
+    hapticMedium();
     const { watchlist } = get();
     const isRemoving = watchlist.includes(id);
     const newWatchlist = isRemoving
@@ -460,6 +508,118 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   setRightPanelOpen: (open) => {
     set({ rightPanelOpen: open });
   },
+
+  // Trading actions
+  fetchOrderBook: async (marketId, source, clobTokenId) => {
+    set({ orderBookLoading: true });
+    try {
+      const params = new URLSearchParams({ marketId, source });
+      if (clobTokenId) params.set("clobTokenId", clobTokenId);
+      const res = await fetch(`/api/trade/orderbook?${params}`);
+      if (res.ok) {
+        const orderBook: OrderBook = await res.json();
+        set({ orderBook, orderBookLoading: false });
+      } else {
+        set({ orderBookLoading: false });
+      }
+    } catch {
+      set({ orderBookLoading: false });
+    }
+  },
+
+  fetchTradeEstimate: async (req) => {
+    try {
+      const res = await fetch("/api/trade/estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req),
+      });
+      if (res.ok) {
+        const estimate: TradeEstimate = await res.json();
+        set({ tradeEstimate: estimate });
+      }
+    } catch {
+      // silent
+    }
+  },
+
+  submitOrder: async (req) => {
+    set({ tradeSubmitting: true, tradeConfirmPending: null });
+    try {
+      const res = await fetch("/api/trade/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req),
+      });
+      const data = await res.json();
+      if (data.error === "no_credentials") {
+        set({ tradeSubmitting: false });
+        return;
+      }
+      // Refresh orders and positions after trade
+      get().fetchOrders();
+      get().fetchPositions();
+      set({ tradeSubmitting: false, orderFormAmount: "" });
+    } catch {
+      set({ tradeSubmitting: false });
+    }
+  },
+
+  cancelOrder: async (orderId) => {
+    try {
+      await fetch("/api/trade/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      get().fetchOrders();
+    } catch {
+      // silent
+    }
+  },
+
+  fetchOrders: async () => {
+    try {
+      const res = await fetch("/api/trade/order");
+      if (res.ok) {
+        const orders: OrderRecord[] = await res.json();
+        set({ orders });
+      }
+    } catch {
+      // silent
+    }
+  },
+
+  fetchPositions: async () => {
+    try {
+      const res = await fetch("/api/trade/positions");
+      if (res.ok) {
+        const positions: PositionRecord[] = await res.json();
+        set({ positions });
+      }
+    } catch {
+      // silent
+    }
+  },
+
+  fetchCredentialStatuses: async () => {
+    try {
+      const res = await fetch("/api/settings/credentials");
+      if (res.ok) {
+        const statuses: CredentialStatus[] = await res.json();
+        set({ credentialStatuses: statuses });
+      }
+    } catch {
+      // silent
+    }
+  },
+
+  setOrderFormSide: (side) => set({ orderFormSide: side }),
+  setOrderFormType: (type) => set({ orderFormType: type }),
+  setOrderFormAmount: (amount) => set({ orderFormAmount: amount }),
+  setOrderFormLimitPrice: (price) => set({ orderFormLimitPrice: price }),
+  setTradeConfirmPending: (req) => set({ tradeConfirmPending: req }),
+  setShowCredentialsModal: (show) => set({ showCredentialsModal: show }),
 }));
 
 // Derived data hooks
