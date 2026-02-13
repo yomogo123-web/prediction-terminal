@@ -1,9 +1,10 @@
 import { create } from "zustand";
-import { Market, Category, SortField, SortDirection, RightPanelTab, Alert, ArbPair, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData, EdgeSignal, NewsItem, AIEdgePrediction, AITrackStats, SmartMoneySignal } from "./types";
+import { Market, Category, SortField, SortDirection, RightPanelTab, Alert, ArbPair, CorrelationMatrix, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData, EdgeSignal, NewsItem, AIEdgePrediction, AITrackStats, SmartMoneySignal } from "./types";
 import { OrderBook, TradeEstimate, TradeRequest, TradeSide, OrderType, OrderRecord, PositionRecord, CredentialStatus } from "./trading-types";
 import { generateMockMarkets } from "./mock-data";
 import { fetchMarkets, fetchPriceHistory } from "./api";
 import { findArbPairs } from "./arbitrage";
+import { computeCategoryCorrelation, computeMarketCorrelation } from "./correlation";
 import { hapticMedium } from "./capacitor";
 import { computeEdgeSignals } from "./edge-detection";
 import { useMemo } from "react";
@@ -39,6 +40,19 @@ interface TerminalStore {
   // Smart Money
   smartMoneySignals: SmartMoneySignal[];
   smartMoneyLoading: boolean;
+
+  // Cached expensive computations
+  cachedEdgeSignals: Map<string, EdgeSignal>;
+  cachedArbPairs: ArbPair[];
+  cachedCategoryCorrelation: CorrelationMatrix;
+  cachedMarketCorrelation: CorrelationMatrix;
+
+  // Price history loading state
+  historyLoadingIds: Set<string>;
+  historyFailedIds: Set<string>;
+
+  // Data freshness
+  lastRefreshedAt: number | null;
 
   // WebSocket
   wsConnected: boolean;
@@ -81,6 +95,9 @@ interface TerminalStore {
 
   // Smart Money actions
   fetchSmartMoney: () => Promise<void>;
+
+  // Expensive computation refresh (call on market data changes, not price drift)
+  recomputeSignals: () => void;
 
   // Mobile actions
   setMobilePanel: (panel: "table" | "detail" | "chart" | "tabs") => void;
@@ -138,6 +155,13 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   aiTrackLoading: false,
   smartMoneySignals: [],
   smartMoneyLoading: false,
+  cachedEdgeSignals: new Map(),
+  cachedArbPairs: [],
+  cachedCategoryCorrelation: { labels: [], values: [] },
+  cachedMarketCorrelation: { labels: [], values: [] },
+  historyLoadingIds: new Set<string>(),
+  historyFailedIds: new Set<string>(),
+  lastRefreshedAt: null,
   wsConnected: false,
   mobilePanel: "table",
   rightPanelOpen: false,
@@ -167,7 +191,9 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
           selectedMarketId: markets[0]?.id || null,
           loading: false,
           dataSource: "live",
+          lastRefreshedAt: Date.now(),
         });
+        get().recomputeSignals();
         return;
       }
     } catch (e) {
@@ -181,6 +207,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       loading: false,
       dataSource: "mock",
     });
+    get().recomputeSignals();
   },
 
   refreshMarkets: async () => {
@@ -213,11 +240,13 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
         return {
           markets: merged,
           dataSource: "live" as const,
+          lastRefreshedAt: Date.now(),
           selectedMarketId: selectedStillExists
             ? state.selectedMarketId
             : merged[0]?.id || null,
         };
       });
+      get().recomputeSignals();
     } catch (e) {
       console.warn("Failed to refresh markets:", e);
     }
@@ -236,7 +265,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       : [...watchlist, id];
     set({ watchlist: newWatchlist });
 
-    // Fire-and-forget sync to DB
+    // Always persist to localStorage for guest mode
+    try { localStorage.setItem("guest_watchlist", JSON.stringify(newWatchlist)); } catch {}
+
+    // Fire-and-forget sync to DB (will 401 for guests, that's OK)
     fetch("/api/watchlist", {
       method: isRemoving ? "DELETE" : "POST",
       headers: { "Content-Type": "application/json" },
@@ -308,14 +340,20 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
 
   loadMarketHistory: async (marketId: string) => {
-    const { markets } = get();
+    const { markets, historyLoadingIds } = get();
     const market = markets.find((m) => m.id === marketId);
     if (!market) return;
     if (market.priceHistory.length > 10) return;
+    if (historyLoadingIds.has(marketId)) return;
 
     // Use clobTokenId if available, otherwise extract ID from market ID prefix
     const token = market.clobTokenId || marketId.replace(/^(poly|kal|man|pit)-/, "");
     if (!token) return;
+
+    set((state) => ({
+      historyLoadingIds: new Set(Array.from(state.historyLoadingIds).concat(marketId)),
+      historyFailedIds: new Set(Array.from(state.historyFailedIds).filter((id) => id !== marketId)),
+    }));
 
     try {
       const history = await fetchPriceHistory(token, market.source, market.probability);
@@ -323,9 +361,14 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
         markets: state.markets.map((m) =>
           m.id === marketId ? { ...m, priceHistory: history } : m
         ),
+        historyLoadingIds: new Set(Array.from(state.historyLoadingIds).filter((id) => id !== marketId)),
       }));
     } catch (e) {
       console.warn("Failed to load price history:", e);
+      set((state) => ({
+        historyLoadingIds: new Set(Array.from(state.historyLoadingIds).filter((id) => id !== marketId)),
+        historyFailedIds: new Set(Array.from(state.historyFailedIds).concat(marketId)),
+      }));
     }
   },
 
@@ -339,7 +382,12 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
 
   addAlert: (alert: Alert) => {
-    set((state) => ({ alerts: [...state.alerts, alert] }));
+    const newAlerts = [...get().alerts, alert];
+    set({ alerts: newAlerts });
+
+    // Always persist to localStorage for guest mode
+    try { localStorage.setItem("guest_alerts", JSON.stringify(newAlerts)); } catch {}
+
     // Sync to DB
     fetch("/api/alerts", {
       method: "POST",
@@ -396,8 +444,8 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     set({ newsLoading: true });
     try {
       const { markets } = get();
-      const titles = markets.slice(0, 20).map((m) => m.title).join(",");
-      const res = await fetch(`/api/news?markets=${encodeURIComponent(titles)}`);
+      const batch = markets.slice(0, 20).map((m) => `${m.id}|${m.title}`).join(",");
+      const res = await fetch(`/api/news?markets=${encodeURIComponent(batch)}`);
       if (res.ok) {
         const items: NewsItem[] = await res.json();
         set({ newsItems: items, newsLoading: false });
@@ -507,6 +555,16 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
 
   setRightPanelOpen: (open) => {
     set({ rightPanelOpen: open });
+  },
+
+  recomputeSignals: () => {
+    const { markets } = get();
+    set({
+      cachedEdgeSignals: computeEdgeSignals(markets),
+      cachedArbPairs: findArbPairs(markets),
+      cachedCategoryCorrelation: computeCategoryCorrelation(markets),
+      cachedMarketCorrelation: computeMarketCorrelation(markets),
+    });
   },
 
   // Trading actions
@@ -707,19 +765,11 @@ export function useTopMovers(): { gainers: Market[]; losers: Market[] } {
 }
 
 export function useArbPairs(): ArbPair[] {
-  const markets = useTerminalStore((s) => s.markets);
-
-  return useMemo(() => {
-    return findArbPairs(markets);
-  }, [markets]);
+  return useTerminalStore((s) => s.cachedArbPairs);
 }
 
 export function useEdgeSignals(): Map<string, EdgeSignal> {
-  const markets = useTerminalStore((s) => s.markets);
-
-  return useMemo(() => {
-    return computeEdgeSignals(markets);
-  }, [markets]);
+  return useTerminalStore((s) => s.cachedEdgeSignals);
 }
 
 export function useAIEdge(): Map<string, AIEdgePrediction> {

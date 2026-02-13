@@ -23,7 +23,10 @@ export default function CommandBar() {
   const setRightPanelTab = useTerminalStore((s) => s.setRightPanelTab);
   const setMobilePanel = useTerminalStore((s) => s.setMobilePanel);
   const wsConnected = useTerminalStore((s) => s.wsConnected);
+  const dataSource = useTerminalStore((s) => s.dataSource);
+  const lastRefreshedAt = useTerminalStore((s) => s.lastRefreshedAt);
   const [showAlertPanel, setShowAlertPanel] = useState(false);
+  const [, setTick] = useState(0);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
@@ -59,6 +62,16 @@ export default function CommandBar() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [categoryFilter, setCategoryFilter, setSearchQuery, rightPanelTab, setRightPanelTab]);
+
+  // Tick every 10s to update "Updated Xs ago"
+  useEffect(() => {
+    const interval = setInterval(() => setTick((t) => t + 1), 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const agoLabel = lastRefreshedAt
+    ? `${Math.round((Date.now() - lastRefreshedAt) / 1000)}s ago`
+    : "";
 
   return (
     <>
@@ -129,21 +142,19 @@ export default function CommandBar() {
         <span className="text-terminal-muted text-xs font-mono hidden md:inline">
           {markets.length} MKTs
         </span>
-        {(() => {
-          const dataSource = useTerminalStore.getState().dataSource;
-          const sources = new Set(markets.map((m) => m.source));
-          sources.delete("mock");
-          return (
-            <span className={`text-xs font-mono font-bold flex-shrink-0 flex items-center gap-1 ${
-              dataSource === "live" ? "text-terminal-green" : "text-terminal-amber"
-            }`}>
-              {dataSource === "live" ? `● LIVE (${sources.size} src)` : "● MOCK"}
-              {wsConnected && (
-                <span className="text-cyan-400 animate-pulse">WS</span>
-              )}
-            </span>
-          );
-        })()}
+        <span className={`text-xs font-mono font-bold flex-shrink-0 flex items-center gap-1 ${
+          dataSource === "live" ? "text-terminal-green" : "text-terminal-amber"
+        }`}>
+          {dataSource === "live" ? `● LIVE (${new Set(markets.filter((m) => m.source !== "mock").map((m) => m.source)).size} src)` : "● MOCK"}
+          {wsConnected && (
+            <span className="text-cyan-400 animate-pulse">WS</span>
+          )}
+        </span>
+        {agoLabel && (
+          <span className="text-terminal-muted text-[10px] font-mono hidden md:inline">
+            {agoLabel}
+          </span>
+        )}
 
         {session?.user && (
           <>

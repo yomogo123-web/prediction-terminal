@@ -55,35 +55,65 @@ export default function ArbitragePanel() {
             </div>
 
             {/* Market A - higher price */}
-            <div
-              onClick={() => selectMarket(pair.marketA.id)}
-              className="flex items-center gap-1 text-xs font-mono cursor-pointer hover:text-terminal-text mb-0.5"
-            >
-              <span className={`flex-shrink-0 text-[10px] w-8 ${sourceLabels[pair.marketA.source]?.color || ""}`}>
+            <div className="flex items-center gap-1 text-xs font-mono mb-0.5">
+              <span
+                onClick={() => selectMarket(pair.marketA.id)}
+                className={`flex-shrink-0 text-[10px] w-8 cursor-pointer ${sourceLabels[pair.marketA.source]?.color || ""}`}
+              >
                 {sourceLabels[pair.marketA.source]?.label}
               </span>
-              <span className="truncate flex-1 text-terminal-text">
+              <span
+                onClick={() => selectMarket(pair.marketA.id)}
+                className="truncate flex-1 text-terminal-text cursor-pointer hover:text-terminal-amber"
+              >
                 {pair.marketA.title.slice(0, 45)}
               </span>
               <span className="flex-shrink-0 text-terminal-green tabular-nums font-bold">
                 {pair.marketA.probability.toFixed(1)}¢
               </span>
+              {pair.marketA.sourceUrl && (
+                <a
+                  href={pair.marketA.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex-shrink-0 text-[9px] text-terminal-muted hover:text-terminal-amber"
+                  title="View on source"
+                >
+                  ↗
+                </a>
+              )}
             </div>
 
             {/* Market B - lower price */}
-            <div
-              onClick={() => selectMarket(pair.marketB.id)}
-              className="flex items-center gap-1 text-xs font-mono cursor-pointer hover:text-terminal-text"
-            >
-              <span className={`flex-shrink-0 text-[10px] w-8 ${sourceLabels[pair.marketB.source]?.color || ""}`}>
+            <div className="flex items-center gap-1 text-xs font-mono">
+              <span
+                onClick={() => selectMarket(pair.marketB.id)}
+                className={`flex-shrink-0 text-[10px] w-8 cursor-pointer ${sourceLabels[pair.marketB.source]?.color || ""}`}
+              >
                 {sourceLabels[pair.marketB.source]?.label}
               </span>
-              <span className="truncate flex-1 text-terminal-text">
+              <span
+                onClick={() => selectMarket(pair.marketB.id)}
+                className="truncate flex-1 text-terminal-text cursor-pointer hover:text-terminal-amber"
+              >
                 {pair.marketB.title.slice(0, 45)}
               </span>
               <span className="flex-shrink-0 text-terminal-red tabular-nums font-bold">
                 {pair.marketB.probability.toFixed(1)}¢
               </span>
+              {pair.marketB.sourceUrl && (
+                <a
+                  href={pair.marketB.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex-shrink-0 text-[9px] text-terminal-muted hover:text-terminal-amber"
+                  title="View on source"
+                >
+                  ↗
+                </a>
+              )}
             </div>
           </div>
         ))}

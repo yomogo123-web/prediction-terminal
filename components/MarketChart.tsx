@@ -7,6 +7,8 @@ import { createChart, IChartApi, ISeriesApi, AreaSeries } from "lightweight-char
 export default function MarketChart() {
   const selectedMarket = useSelectedMarket();
   const loadMarketHistory = useTerminalStore((s) => s.loadMarketHistory);
+  const historyLoadingIds = useTerminalStore((s) => s.historyLoadingIds);
+  const historyFailedIds = useTerminalStore((s) => s.historyFailedIds);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
@@ -142,9 +144,16 @@ export default function MarketChart() {
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-terminal-border">
         <span className="text-terminal-muted text-xs font-mono">
           PROBABILITY CHART
-          {selectedMarket.priceHistory.length === 0 && selectedMarket.clobTokenId
-            ? " (loading...)"
-            : ""}
+          {historyLoadingIds.has(selectedMarket.id) && " (loading...)"}
+          {historyFailedIds.has(selectedMarket.id) && (
+            <button
+              onClick={() => loadMarketHistory(selectedMarket.id)}
+              className="ml-2 text-terminal-red hover:text-terminal-amber transition-colors"
+            >
+              Failed — click to retry
+            </button>
+          )}
+          {!historyLoadingIds.has(selectedMarket.id) && !historyFailedIds.has(selectedMarket.id) && selectedMarket.priceHistory.length === 0 && " (no data)"}
         </span>
         <span className="text-terminal-text text-xs font-mono truncate ml-2">
           {selectedMarket.title}

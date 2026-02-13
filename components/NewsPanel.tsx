@@ -82,13 +82,12 @@ export default function NewsPanel() {
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={(e) => {
+                  onClick={() => {
                     // Also select top correlated market if any
                     if (item.correlatedMarketIds.length > 0) {
-                      const idx = parseInt(item.correlatedMarketIds[0]?.replace("mkt-", "") || "");
-                      if (!isNaN(idx) && markets[idx]) {
-                        selectMarket(markets[idx].id);
-                      }
+                      const mid = item.correlatedMarketIds[0];
+                      const m = markets.find((mk) => mk.id === mid);
+                      if (m) selectMarket(m.id);
                     }
                   }}
                   className="text-terminal-text text-[11px] font-mono leading-tight hover:text-terminal-amber transition-colors cursor-pointer block"
@@ -100,8 +99,7 @@ export default function NewsPanel() {
                     {item.source}
                   </span>
                   {item.correlatedMarketIds.slice(0, 2).map((mid) => {
-                    const idx = parseInt(mid.replace("mkt-", ""));
-                    const m = !isNaN(idx) ? markets[idx] : null;
+                    const m = markets.find((mk) => mk.id === mid);
                     if (!m) return null;
                     return (
                       <button

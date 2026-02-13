@@ -54,19 +54,31 @@ export default function Home() {
 
   // Hydrate watchlist, alerts, and trading data from DB on login
   useEffect(() => {
-    if (!session) return;
-    fetch("/api/watchlist")
-      .then((r) => r.json())
-      .then((ids: string[]) => { if (Array.isArray(ids)) setWatchlist(ids); })
-      .catch(() => {});
-    fetch("/api/alerts")
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setAlerts(data); })
-      .catch(() => {});
-    fetchCredentialStatuses();
-    fetchOrders();
-    fetchPositions();
-  }, [session, setWatchlist, setAlerts, fetchCredentialStatuses, fetchOrders, fetchPositions]);
+    if (session) {
+      // Authenticated: hydrate from DB
+      fetch("/api/watchlist")
+        .then((r) => r.json())
+        .then((ids: string[]) => { if (Array.isArray(ids)) setWatchlist(ids); })
+        .catch(() => {});
+      fetch("/api/alerts")
+        .then((r) => r.json())
+        .then((data) => { if (Array.isArray(data)) setAlerts(data); })
+        .catch(() => {});
+      fetchCredentialStatuses();
+      fetchOrders();
+      fetchPositions();
+    } else if (guestMode) {
+      // Guest mode: hydrate from localStorage
+      try {
+        const savedWatchlist = localStorage.getItem("guest_watchlist");
+        if (savedWatchlist) setWatchlist(JSON.parse(savedWatchlist));
+      } catch {}
+      try {
+        const savedAlerts = localStorage.getItem("guest_alerts");
+        if (savedAlerts) setAlerts(JSON.parse(savedAlerts));
+      } catch {}
+    }
+  }, [session, guestMode, setWatchlist, setAlerts, fetchCredentialStatuses, fetchOrders, fetchPositions]);
 
   // Initialize markets on mount
   useEffect(() => {

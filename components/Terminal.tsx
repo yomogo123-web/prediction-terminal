@@ -16,6 +16,7 @@ import Ticker from "./Ticker";
 import TrendingPanel from "./TrendingPanel";
 import MobileNav from "./MobileNav";
 import Toast from "./Toast";
+import ErrorBoundary from "./ErrorBoundary";
 import { useTerminalStore } from "@/lib/store";
 import { RightPanelTab } from "@/lib/types";
 
@@ -65,10 +66,14 @@ export default function Terminal() {
           {/* Top row: Trending (left) + Chart (right) */}
           <div className="flex-[2] flex overflow-hidden border-b border-terminal-border">
             <div className="flex-1 overflow-hidden border-r border-terminal-border">
-              <TrendingPanel />
+              <ErrorBoundary label="Trending">
+                <TrendingPanel />
+              </ErrorBoundary>
             </div>
             <div className="flex-1 overflow-hidden">
-              <MarketChart />
+              <ErrorBoundary label="Chart">
+                <MarketChart />
+              </ErrorBoundary>
             </div>
           </div>
           {/* Market Table - bottom of left panel */}
@@ -80,12 +85,16 @@ export default function Terminal() {
         {/* Right Panel (40%) */}
         <div className="flex-[2] flex flex-col min-w-0">
           <div className="flex-1 overflow-hidden border-b border-terminal-border">
-            <MarketDetail />
+            <ErrorBoundary label="Market Detail">
+              <MarketDetail />
+            </ErrorBoundary>
           </div>
           <div className="flex-1 overflow-hidden flex flex-col">
             <TabBar rightPanelTab={rightPanelTab} setRightPanelTab={setRightPanelTab} />
             <div className="flex-1 overflow-hidden">
-              <TabContent tab={rightPanelTab} />
+              <ErrorBoundary label={rightPanelTab}>
+                <TabContent tab={rightPanelTab} />
+              </ErrorBoundary>
             </div>
           </div>
         </div>
@@ -106,10 +115,14 @@ export default function Terminal() {
         {mobilePanel === "chart" && (
           <div className="flex-1 overflow-auto">
             <div className="h-[45%] min-h-[200px] border-b border-terminal-border">
-              <MarketChart />
+              <ErrorBoundary label="Chart">
+                <MarketChart />
+              </ErrorBoundary>
             </div>
             <div className="h-[55%] min-h-[200px]">
-              <TrendingPanel />
+              <ErrorBoundary label="Trending">
+                <TrendingPanel />
+              </ErrorBoundary>
             </div>
           </div>
         )}
@@ -117,16 +130,16 @@ export default function Terminal() {
           <div className="flex-1 overflow-hidden flex flex-col">
             <TabBar rightPanelTab={rightPanelTab} setRightPanelTab={setRightPanelTab} />
             <div className="flex-1 overflow-hidden">
-              <TabContent tab={rightPanelTab} />
+              <ErrorBoundary label={rightPanelTab}>
+                <TabContent tab={rightPanelTab} />
+              </ErrorBoundary>
             </div>
           </div>
         )}
       </div>
 
-      {/* Bottom: Scrolling Ticker (desktop only) */}
-      <div className="hidden lg:block">
-        <Ticker />
-      </div>
+      {/* Bottom: Scrolling Ticker */}
+      <Ticker />
 
       {/* Mobile bottom nav */}
       <MobileNav />

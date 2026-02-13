@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useTerminalStore } from "@/lib/store";
-import { computeCategoryCorrelation, computeMarketCorrelation } from "@/lib/correlation";
 
 function getCorrelationColor(value: number): string {
   if (value >= 0.7) return "bg-green-600/60 text-green-200";
@@ -15,14 +14,11 @@ function getCorrelationColor(value: number): string {
 }
 
 export default function CorrelationMatrix() {
-  const markets = useTerminalStore((s) => s.markets);
+  const cachedCategoryCorrelation = useTerminalStore((s) => s.cachedCategoryCorrelation);
+  const cachedMarketCorrelation = useTerminalStore((s) => s.cachedMarketCorrelation);
   const [mode, setMode] = useState<"category" | "market">("category");
 
-  const matrix = useMemo(() => {
-    return mode === "category"
-      ? computeCategoryCorrelation(markets)
-      : computeMarketCorrelation(markets);
-  }, [markets, mode]);
+  const matrix = mode === "category" ? cachedCategoryCorrelation : cachedMarketCorrelation;
 
   return (
     <div className="px-2 pb-2">

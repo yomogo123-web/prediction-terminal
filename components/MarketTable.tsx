@@ -7,12 +7,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import Sparkline from "./Sparkline";
 import { useIsMobile } from "@/lib/hooks/use-media-query";
 import { hapticLight } from "@/lib/capacitor";
-
-function formatVolume(v: number): string {
-  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
-  return `$${v}`;
-}
+import { formatVolume } from "@/lib/format";
 
 const categoryColors: Record<string, string> = {
   Politics: "text-blue-400",
@@ -153,6 +148,11 @@ export default function MarketTable() {
           const isSelected = market.id === selectedMarketId;
           const probChanged = market.probability !== market.previousProbability;
           const probUp = market.probability > market.previousProbability;
+          const ai = aiEdge.get(market.id);
+          const aiDiv = ai ? Math.round(ai.divergence) : null;
+          const sm = smartMoneyMap.get(market.id);
+          const edge = edgeSignals.get(market.id);
+          const edgeScore = edge?.edgeScore || 0;
 
           return (
             <div
@@ -220,56 +220,31 @@ export default function MarketTable() {
               <div className="w-24 px-3 text-right text-terminal-muted tabular-nums hidden md:block">
                 {formatVolume(market.volume)}
               </div>
-              {(() => {
-                const ai = aiEdge.get(market.id);
-                const div = ai ? Math.round(ai.divergence) : null;
-                return (
-                  <div className={`w-14 px-2 text-right tabular-nums text-[11px] font-bold hidden md:block ${
-                    div === null ? "text-terminal-muted" : div > 0 ? "text-terminal-green" : div < 0 ? "text-terminal-red" : "text-terminal-muted"
-                  }`}>
-                    {div === null ? "\u00b7" : `${div > 0 ? "+" : ""}${div}`}
-                  </div>
-                );
-              })()}
+              <div className={`w-14 px-2 text-right tabular-nums text-[11px] font-bold hidden md:block ${
+                aiDiv === null ? "text-terminal-muted" : aiDiv > 0 ? "text-terminal-green" : aiDiv < 0 ? "text-terminal-red" : "text-terminal-muted"
+              }`}>
+                {aiDiv === null ? "\u00b7" : `${aiDiv > 0 ? "+" : ""}${aiDiv}`}
+              </div>
               <div className={`w-28 px-3 hidden lg:block ${categoryColors[market.category] || "text-terminal-muted"}`}>
                 {market.category}
               </div>
               <div className={`w-16 px-3 text-center text-[10px] hidden lg:block ${sourceLabels[market.source]?.color || "text-terminal-muted"}`}>
                 {sourceLabels[market.source]?.label || market.source}
               </div>
-              {(() => {
-                const sm = smartMoneyMap.get(market.id);
-                if (!sm) return (
-                  <div className="w-10 px-1 text-center text-[10px] text-terminal-muted hidden lg:block">&middot;</div>
-                );
-                const count = sm.yesTraderCount + sm.noTraderCount;
-                const label = sm.netDirection === "YES"
-                  ? `${count}Y`
-                  : sm.netDirection === "NO"
-                  ? `${count}N`
-                  : `${count}M`;
-                const color = sm.netDirection === "YES"
-                  ? "text-terminal-green"
-                  : sm.netDirection === "NO"
-                  ? "text-terminal-red"
-                  : "text-amber-400";
-                return (
-                  <div className={`w-10 px-1 text-center text-[10px] font-bold hidden lg:block ${color}`}>
-                    {label}
-                  </div>
-                );
-              })()}
-              {(() => {
-                const edge = edgeSignals.get(market.id);
-                const score = edge?.edgeScore || 0;
-                return (
-                  <div className={`w-16 px-3 text-right tabular-nums font-bold hidden lg:block ${
-                    score > 15 ? "text-terminal-green" : score < -15 ? "text-terminal-red" : "text-terminal-muted"
-                  }`}>
-                    {score > 0 ? "+" : ""}{score}
-                  </div>
-                );
-              })()}
+              {sm ? (
+                <div className={`w-10 px-1 text-center text-[10px] font-bold hidden lg:block ${
+                  sm.netDirection === "YES" ? "text-terminal-green" : sm.netDirection === "NO" ? "text-terminal-red" : "text-amber-400"
+                }`}>
+                  {sm.yesTraderCount + sm.noTraderCount}{sm.netDirection === "YES" ? "Y" : sm.netDirection === "NO" ? "N" : "M"}
+                </div>
+              ) : (
+                <div className="w-10 px-1 text-center text-[10px] text-terminal-muted hidden lg:block">&middot;</div>
+              )}
+              <div className={`w-16 px-3 text-right tabular-nums font-bold hidden lg:block ${
+                edgeScore > 15 ? "text-terminal-green" : edgeScore < -15 ? "text-terminal-red" : "text-terminal-muted"
+              }`}>
+                {edgeScore > 0 ? "+" : ""}{edgeScore}
+              </div>
             </div>
           );
         })}

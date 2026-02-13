@@ -1,19 +1,11 @@
 import { NextResponse } from "next/server";
 
-interface CachedNews {
-  items: RawNewsItem[];
-  timestamp: number;
-}
-
 interface RawNewsItem {
   title: string;
   url: string;
   source: string;
   publishedAt: string;
 }
-
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-let newsCache: CachedNews | null = null;
 
 const RSS_FEEDS = [
   { url: "https://news.google.com/rss/topics/CAAqBwgKMKHL9QowkqL0Ag?hl=en-US&gl=US&ceid=US:en", label: "Business" },
@@ -58,6 +50,7 @@ async function fetchAllNews(): Promise<RawNewsItem[]> {
         const res = await fetch(feed.url, {
           headers: { "User-Agent": "Mozilla/5.0" },
           signal: AbortSignal.timeout(5000),
+          next: { revalidate: 300 }, // 5-minute edge cache
         });
         if (!res.ok) return [];
         const xml = await res.text();
@@ -96,16 +89,17 @@ async function fetchAllNews(): Promise<RawNewsItem[]> {
 }
 
 // Simple keyword-based matching for server-side correlation
-function matchHeadlineToMarkets(headline: string, marketTitles: string[]): number[] {
+// Returns actual market IDs instead of array indices
+function matchHeadlineToMarkets(headline: string, marketEntries: { id: string; title: string }[]): string[] {
   const STOP = new Set(["the", "a", "an", "is", "are", "was", "were", "will", "to", "of", "in", "for", "on", "with", "at", "by", "from", "and", "or", "but", "not", "this", "that", "it", "as"]);
   const headlineWords = headline.toLowerCase().replace(/[^\w\s]/g, "").split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w));
   if (headlineWords.length === 0) return [];
 
   const headlineSet = new Set(headlineWords);
-  const scored: { index: number; score: number }[] = [];
+  const scored: { id: string; score: number }[] = [];
 
-  for (let i = 0; i < marketTitles.length; i++) {
-    const marketWords = marketTitles[i].toLowerCase().replace(/[^\w\s]/g, "").split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w));
+  for (const entry of marketEntries) {
+    const marketWords = entry.title.toLowerCase().replace(/[^\w\s]/g, "").split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w));
     let overlap = 0;
     for (const w of marketWords) {
       if (headlineSet.has(w)) overlap++;
@@ -113,50 +107,41 @@ function matchHeadlineToMarkets(headline: string, marketTitles: string[]): numbe
     const union = new Set([...headlineWords, ...marketWords]).size;
     const sim = union > 0 ? overlap / union : 0;
     if (sim > 0.05) {
-      scored.push({ index: i, score: sim });
+      scored.push({ id: entry.id, score: sim });
     }
   }
 
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, 3).map((s) => s.index);
+  return scored.slice(0, 3).map((s) => s.id);
 }
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const marketsParam = searchParams.get("markets") || "";
-  const marketTitles = marketsParam ? marketsParam.split(",").map((t) => t.trim()) : [];
+  // Parse "id|title" pairs, falling back to title-only for backwards compat
+  const marketEntries = marketsParam
+    ? marketsParam.split(",").map((entry) => {
+        const pipeIdx = entry.indexOf("|");
+        if (pipeIdx > 0) {
+          return { id: entry.slice(0, pipeIdx).trim(), title: entry.slice(pipeIdx + 1).trim() };
+        }
+        return { id: entry.trim(), title: entry.trim() };
+      })
+    : [];
 
-  // Use cache if fresh
-  if (newsCache && Date.now() - newsCache.timestamp < CACHE_TTL) {
-    const items = newsCache.items.map((item, i) => {
-      const matchedIndices = matchHeadlineToMarkets(item.title, marketTitles);
-      return {
-        id: `news-${i}-${Date.now()}`,
-        title: item.title,
-        url: item.url,
-        source: item.source,
-        publishedAt: item.publishedAt,
-        correlatedMarketIds: matchedIndices.map((idx) => `mkt-${idx}`),
-        relevanceScore: matchedIndices.length > 0 ? 1 : 0,
-      };
-    });
-    return NextResponse.json(items.slice(0, 30));
-  }
-
-  // Fetch fresh
+  // RSS fetches are edge-cached via next.revalidate (5 min)
   const rawItems = await fetchAllNews();
-  newsCache = { items: rawItems, timestamp: Date.now() };
 
   const items = rawItems.map((item, i) => {
-    const matchedIndices = matchHeadlineToMarkets(item.title, marketTitles);
+    const matchedIds = matchHeadlineToMarkets(item.title, marketEntries);
     return {
       id: `news-${i}-${Date.now()}`,
       title: item.title,
       url: item.url,
       source: item.source,
       publishedAt: item.publishedAt,
-      correlatedMarketIds: matchedIndices.map((idx) => `mkt-${idx}`),
-      relevanceScore: matchedIndices.length > 0 ? 1 : 0,
+      correlatedMarketIds: matchedIds,
+      relevanceScore: matchedIds.length > 0 ? 1 : 0,
     };
   });
 

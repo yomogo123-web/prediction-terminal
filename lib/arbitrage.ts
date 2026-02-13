@@ -83,7 +83,14 @@ export function findArbPairs(markets: Market[]): ArbPair[] {
         const tokensB = getTokens(b);
         const similarity = jaccardSimilarity(tokensA, tokensB);
 
-        if (similarity < 0.4) continue;
+        if (similarity < 0.5) continue;
+
+        // Skip if both markets agree on direction (same side of 50% with both extreme)
+        // e.g. one >70% and other <30% likely measures same event from opposite outcomes
+        if (
+          (a.probability > 70 && b.probability < 30) ||
+          (b.probability > 70 && a.probability < 30)
+        ) continue;
 
         // Check price divergence > 2 cents
         const spread = Math.abs(a.probability - b.probability);

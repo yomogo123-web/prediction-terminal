@@ -1,6 +1,7 @@
 "use client";
 
 import { useTerminalStore, useTopMovers } from "@/lib/store";
+import { formatVolume } from "@/lib/format";
 
 const sourceColors: Record<string, string> = {
   polymarket: "text-purple-400",
@@ -9,13 +10,6 @@ const sourceColors: Record<string, string> = {
   predictit: "text-orange-400",
   mock: "text-terminal-muted",
 };
-
-function formatVolume(v: number): string {
-  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
-  if (v > 0) return `$${v}`;
-  return "—";
-}
 
 export default function TrendingPanel() {
   const { gainers, losers } = useTopMovers();

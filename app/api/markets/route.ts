@@ -3,17 +3,28 @@ import { Market, Category } from "@/lib/types";
 
 // ─── Category Mapping ───────────────────────────────────────────────
 
+const CATEGORY_PATTERNS: { category: Category; pattern: RegExp }[] = [
+  { category: "Politics", pattern: /politic|election|president|governor|senate|congress|government|trump|biden|democrat|republican|party|nominee|vote|ballot|legislation|white house|supreme court|fed\b|federal reserve|interest rate|tariff|sanction|executive order|impeach|cabinet|parliamentary/ },
+  { category: "Sports", pattern: /sport|nba|nfl|soccer|football|tennis|baseball|mma|ufc|boxing|f1|racing|championship|league|super bowl|world cup|olympic|playoff|mvp|premier league|arsenal|lakers|world series|grand slam|champions league/ },
+  { category: "Crypto", pattern: /crypto|bitcoin|btc|ethereum|eth|solana|defi|blockchain|stablecoin|coinbase|binance|nft|memecoin|altcoin|web3|layer 2|polygon|avalanche|cardano/ },
+  { category: "Tech", pattern: /\btech|ai\b|artificial intellig|apple|google|microsoft|nvidia|openai|software|chip|tesla|tiktok|spacex|meta\b|robot|quantum|starship|semiconductor|gpus?\b|llm|chatgpt|anthropic|deepmind/ },
+];
+
 function categorize(text: string): Category {
   const t = text.toLowerCase();
-  if (/politic|election|president|governor|senate|congress|government|trump|biden|democrat|republican|party|nominee|vote|ballot|legislation|white house|supreme court/.test(t))
-    return "Politics";
-  if (/sport|nba|nfl|soccer|football|tennis|baseball|mma|ufc|boxing|f1|racing|championship|league|super bowl|world cup|olympic|playoff|mvp|premier league|arsenal|lakers/.test(t))
-    return "Sports";
-  if (/crypto|bitcoin|btc|ethereum|eth|solana|defi|token|blockchain|stablecoin|coinbase|binance|nft/.test(t))
-    return "Crypto";
-  if (/tech|ai |artificial|apple|google|microsoft|nvidia|openai|software|chip|tesla|tiktok|spacex|meta |robot|quantum|starship/.test(t))
-    return "Tech";
-  return "World Events";
+  let bestCategory: Category = "World Events";
+  let bestScore = 0;
+
+  for (const { category, pattern } of CATEGORY_PATTERNS) {
+    const matches = t.match(pattern);
+    const score = matches ? matches.length : 0;
+    if (score > bestScore) {
+      bestScore = score;
+      bestCategory = category;
+    }
+  }
+
+  return bestCategory;
 }
 
 // ─── Polymarket (paginated — 3 parallel requests) ───────────────────
@@ -228,6 +239,11 @@ async function fetchPredictIt(): Promise<Market[]> {
         ? mkt.name
         : `${mkt.shortName} — ${contract.name}`;
 
+      // Use totalSharesTraded if available, otherwise estimate from bestBuy/bestSell activity
+      const pitVolume = contract.totalSharesTraded
+        ? contract.totalSharesTraded * (contract.lastTradePrice || 0.5)
+        : 0;
+
       markets.push({
         id: `pit-${contract.id}`,
         title,
@@ -235,7 +251,7 @@ async function fetchPredictIt(): Promise<Market[]> {
         category: categorize(mkt.name + " " + contract.name),
         probability: Math.max(1, Math.min(99, prob)),
         previousProbability: prob,
-        volume: 0,
+        volume: pitVolume,
         change24h,
         priceHistory: [],
         status: "active",

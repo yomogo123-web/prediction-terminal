@@ -15,7 +15,7 @@ export default function Ticker() {
   }, [markets]);
 
   return (
-    <div className="h-7 bg-terminal-panel border-t border-terminal-border overflow-hidden relative">
+    <div className="h-6 lg:h-7 bg-terminal-panel border-t border-terminal-border overflow-hidden relative">
       <div
         className="whitespace-nowrap h-full flex items-center"
         style={{
@@ -26,11 +26,11 @@ export default function Ticker() {
         {[...tickerItems, ...tickerItems].map((market, i) => (
           <span
             key={`${market.id}-${i}`}
-            className="inline-flex items-center gap-1.5 mx-4 text-xs font-mono flex-shrink-0"
+            className="inline-flex items-center gap-1 lg:gap-1.5 mx-2 lg:mx-4 text-[10px] lg:text-xs font-mono flex-shrink-0"
           >
             <span className="text-terminal-muted">
-              {market.title.length > 30
-                ? market.title.slice(0, 30) + "…"
+              {market.title.length > 20
+                ? market.title.slice(0, 20) + "…"
                 : market.title}
             </span>
             <span

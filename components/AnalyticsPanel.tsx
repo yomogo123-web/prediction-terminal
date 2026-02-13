@@ -2,13 +2,7 @@
 
 import { useMarketAnalytics, useTerminalStore, useEdgeSignals } from "@/lib/store";
 import CorrelationMatrix from "./CorrelationMatrix";
-
-function formatVolume(v: number): string {
-  if (v >= 1_000_000_000) return `$${(v / 1_000_000_000).toFixed(1)}B`;
-  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
-  return `$${v.toFixed(0)}`;
-}
+import { formatVolume } from "@/lib/format";
 
 function asciiBar(ratio: number, width: number): string {
   const filled = Math.round(ratio * width);

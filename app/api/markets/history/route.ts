@@ -31,10 +31,15 @@ async function fetchKalshiHistory(token: string): Promise<PricePoint[]> {
   if (!res.ok) throw new Error(`Kalshi API returned ${res.status}`);
   const data = await res.json();
   return (data.candlesticks || []).map(
-    (c: { end_period_ts: number; price: { close: number } }) => ({
-      time: c.end_period_ts,
-      probability: c.price.close, // already 0-100 (cent values)
-    })
+    (c: { end_period_ts: number; price: { close: number } }) => {
+      let prob = c.price.close;
+      // Kalshi returns cents (0-100). If format changes to 0-1 decimal, normalize.
+      if (prob > 0 && prob < 1) {
+        console.warn("Kalshi candlestick returned 0-1 range — normalizing to 0-100");
+        prob = Math.round(prob * 10000) / 100;
+      }
+      return { time: c.end_period_ts, probability: prob };
+    }
   );
 }
 

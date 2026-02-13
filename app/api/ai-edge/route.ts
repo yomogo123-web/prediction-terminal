@@ -14,13 +14,7 @@ interface MarketInput {
   source: string;
 }
 
-interface CachedResult {
-  predictions: AIEdgePrediction[];
-  timestamp: number;
-}
-
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-let cache: CachedResult | null = null;
 
 const SYSTEM_PROMPT = `You are a prediction market analyst. Given a batch of prediction markets with their current probabilities, estimate what the TRUE probability should be based on your knowledge.
 
@@ -46,9 +40,27 @@ export async function POST(request: Request) {
     return NextResponse.json([], { status: 200 });
   }
 
-  // Check cache
-  if (cache && Date.now() - cache.timestamp < CACHE_TTL) {
-    return NextResponse.json(cache.predictions);
+  // Check DB for recent predictions (persistent cache, survives cold starts)
+  try {
+    const cutoff = new Date(Date.now() - CACHE_TTL);
+    const recent = await prisma.aiPrediction.findMany({
+      where: { createdAt: { gte: cutoff } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    });
+    if (recent.length > 0) {
+      const cached: AIEdgePrediction[] = recent.map((r) => ({
+        marketId: r.marketId,
+        aiProbability: r.aiProbability,
+        marketProbability: r.marketProbability,
+        divergence: r.divergence,
+        confidence: r.confidence as AIEdgePrediction["confidence"],
+        reasoning: r.reasoning,
+      }));
+      return NextResponse.json(cached);
+    }
+  } catch (e) {
+    console.warn("Failed to check AI prediction cache:", e);
   }
 
   let markets: MarketInput[];
@@ -137,7 +149,6 @@ export async function POST(request: Request) {
       }),
     }).catch((err) => console.error("Failed to persist AI predictions:", err));
 
-    cache = { predictions, timestamp: Date.now() };
     return NextResponse.json(predictions);
   } catch (e) {
     console.error("AI Edge API error:", e);
