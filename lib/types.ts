@@ -25,7 +25,7 @@ export interface Market {
 
 export type SortField = "probability" | "volume" | "change24h" | "title" | "edge";
 export type SortDirection = "asc" | "desc";
-export type RightPanelTab = "watchlist" | "analytics" | "arbitrage" | "news";
+export type RightPanelTab = "watchlist" | "analytics" | "arbitrage" | "news" | "aitrack";
 
 export interface EdgeSignal {
   marketId: string;
@@ -151,6 +151,24 @@ export interface AIEdgePrediction {
   divergence: number;        // aiProbability - marketProbability
   confidence: "low" | "medium" | "high";
   reasoning: string;         // one-line explanation
+}
+
+export interface AITrackStats {
+  totalPredictions: number;
+  totalResolved: number;
+  avgBrierScore: number | null;
+  hitRate: number | null;
+  calibration: { range: string; avgPredicted: number; avgActual: number; count: number }[];
+  recentResolved: {
+    id: string; marketTitle: string; aiProbability: number;
+    marketProbability: number; resolution: string;
+    brierScore: number | null; createdAt: string; resolvedAt: string;
+  }[];
+  pendingPredictions: {
+    id: string; marketId: string; marketTitle: string;
+    aiProbability: number; marketProbability: number;
+    divergence: number; confidence: string; createdAt: string;
+  }[];
 }
 
 export interface MarketAnalytics {

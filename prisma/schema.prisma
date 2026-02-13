@@ -36,3 +36,23 @@ model Alert {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model AiPrediction {
+  id                String    @id @default(cuid())
+  marketId          String
+  marketTitle       String
+  source            String    // "polymarket" | "kalshi" | "manifold" | "predictit"
+  aiProbability     Float     // 0-100
+  marketProbability Float     // 0-100 at prediction time
+  divergence        Float
+  confidence        String    // "low" | "medium" | "high"
+  reasoning         String
+  createdAt         DateTime  @default(now())
+  resolvedAt        DateTime?
+  resolution        String?   // "yes" | "no"
+  brierScore        Float?    // (predicted/100 - outcome)^2
+
+  @@index([marketId])
+  @@index([createdAt])
+  @@index([resolution])
+}

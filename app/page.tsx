@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useTerminalStore } from "@/lib/store";
 import { checkAlerts } from "@/lib/alert-checker";
+import { usePolymarketWS } from "@/lib/hooks/use-polymarket-ws";
 import Terminal from "@/components/Terminal";
 import AuthModal from "@/components/AuthModal";
 
@@ -15,6 +16,8 @@ export default function Home() {
   const refreshMarkets = useTerminalStore((s) => s.refreshMarkets);
   const fetchNews = useTerminalStore((s) => s.fetchNews);
   const fetchAIEdge = useTerminalStore((s) => s.fetchAIEdge);
+  const fetchAITrack = useTerminalStore((s) => s.fetchAITrack);
+  const checkResolutions = useTerminalStore((s) => s.checkResolutions);
   const simulatePriceUpdate = useTerminalStore((s) => s.simulatePriceUpdate);
   const markets = useTerminalStore((s) => s.markets);
   const loading = useTerminalStore((s) => s.loading);
@@ -23,7 +26,11 @@ export default function Home() {
   const setAlerts = useTerminalStore((s) => s.setAlerts);
   const alerts = useTerminalStore((s) => s.alerts);
   const triggerAlerts = useTerminalStore((s) => s.triggerAlerts);
+  const wsConnected = useTerminalStore((s) => s.wsConnected);
   const initialized = useRef(false);
+
+  // Connect to Polymarket WebSocket for real-time prices
+  usePolymarketWS();
 
   // Show auth modal on first load if not authenticated
   useEffect(() => {
@@ -83,6 +90,25 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [markets.length, fetchAIEdge]);
 
+  // Fetch AI track stats on init and poll every 2 minutes
+  useEffect(() => {
+    if (markets.length === 0) return;
+    fetchAITrack();
+    const interval = setInterval(() => {
+      fetchAITrack();
+    }, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [markets.length, fetchAITrack]);
+
+  // Check resolutions every 5 minutes
+  useEffect(() => {
+    if (markets.length === 0) return;
+    const interval = setInterval(() => {
+      checkResolutions();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [markets.length, checkResolutions]);
+
   // Check alerts callback
   const runAlertCheck = useCallback(() => {
     if (alerts.length === 0 || markets.length === 0) return;
@@ -93,14 +119,15 @@ export default function Home() {
   }, [markets, alerts, triggerAlerts]);
 
   // Subtle simulated drift every 2 seconds + alert check
+  // When WS is connected, skip drift on Polymarket markets (they get real-time data)
   useEffect(() => {
     if (markets.length === 0) return;
     const interval = setInterval(() => {
-      simulatePriceUpdate();
+      simulatePriceUpdate(wsConnected ? true : undefined);
       runAlertCheck();
     }, 2000);
     return () => clearInterval(interval);
-  }, [markets.length, simulatePriceUpdate, runAlertCheck]);
+  }, [markets.length, simulatePriceUpdate, runAlertCheck, wsConnected]);
 
   if (loading) {
     return (

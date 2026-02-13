@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Market, Category, SortField, SortDirection, RightPanelTab, Alert, ArbPair, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData, EdgeSignal, NewsItem, AIEdgePrediction } from "./types";
+import { Market, Category, SortField, SortDirection, RightPanelTab, Alert, ArbPair, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData, EdgeSignal, NewsItem, AIEdgePrediction, AITrackStats } from "./types";
 import { generateMockMarkets } from "./mock-data";
 import { fetchMarkets, fetchPriceHistory } from "./api";
 import { findArbPairs } from "./arbitrage";
@@ -30,6 +30,13 @@ interface TerminalStore {
   aiEdgePredictions: AIEdgePrediction[];
   aiEdgeLoading: boolean;
 
+  // AI Track
+  aiTrackStats: AITrackStats | null;
+  aiTrackLoading: boolean;
+
+  // WebSocket
+  wsConnected: boolean;
+
   // Mobile
   mobilePanel: "table" | "detail" | "chart" | "tabs";
   rightPanelOpen: boolean;
@@ -42,7 +49,9 @@ interface TerminalStore {
   setSearchQuery: (query: string) => void;
   setCategoryFilter: (category: Category | null) => void;
   setSort: (field: SortField) => void;
-  simulatePriceUpdate: () => void;
+  simulatePriceUpdate: (skipPolymarket?: boolean) => void;
+  setWsConnected: (connected: boolean) => void;
+  updateMarketPrices: (updates: Map<string, number>) => void;
   loadMarketHistory: (marketId: string) => Promise<void>;
   setRightPanelTab: (tab: RightPanelTab) => void;
 
@@ -59,6 +68,10 @@ interface TerminalStore {
 
   // AI Edge actions
   fetchAIEdge: () => Promise<void>;
+
+  // AI Track actions
+  fetchAITrack: () => Promise<void>;
+  checkResolutions: () => Promise<void>;
 
   // Mobile actions
   setMobilePanel: (panel: "table" | "detail" | "chart" | "tabs") => void;
@@ -82,6 +95,9 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   newsLoading: false,
   aiEdgePredictions: [],
   aiEdgeLoading: false,
+  aiTrackStats: null,
+  aiTrackLoading: false,
+  wsConnected: false,
   mobilePanel: "table",
   rightPanelOpen: false,
 
@@ -192,10 +208,11 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     }
   },
 
-  simulatePriceUpdate: () => {
+  simulatePriceUpdate: (skipPolymarket?: boolean) => {
     set((state) => ({
       markets: state.markets.map((market) => {
         if (market.status !== "active") return market;
+        if (skipPolymarket && market.source === "polymarket") return market;
 
         const magnitude = state.dataSource === "live" ? 0.1 : 1.0;
         const drift = (Math.random() - 0.5) * magnitude;
@@ -206,6 +223,28 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
           ...market,
           previousProbability: market.probability,
           probability: rounded,
+        };
+      }),
+    }));
+  },
+
+  setWsConnected: (connected: boolean) => {
+    set({ wsConnected: connected });
+  },
+
+  updateMarketPrices: (updates: Map<string, number>) => {
+    set((state) => ({
+      markets: state.markets.map((market) => {
+        const newPrice = updates.get(market.id);
+        if (newPrice === undefined) return market;
+
+        // Skip tiny updates (< 0.01 probability point) to avoid noise
+        if (Math.abs(newPrice - market.probability) < 0.01) return market;
+
+        return {
+          ...market,
+          previousProbability: market.probability,
+          probability: Math.round(newPrice * 100) / 100,
         };
       }),
     }));
@@ -329,6 +368,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
           probability: m.probability,
           volume: m.volume,
           change24h: m.change24h,
+          source: m.source,
         }));
       if (batch.length === 0) {
         set({ aiEdgeLoading: false });
@@ -347,6 +387,29 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       }
     } catch {
       set({ aiEdgeLoading: false });
+    }
+  },
+
+  fetchAITrack: async () => {
+    set({ aiTrackLoading: true });
+    try {
+      const res = await fetch("/api/ai-track");
+      if (res.ok) {
+        const stats: AITrackStats = await res.json();
+        set({ aiTrackStats: stats, aiTrackLoading: false });
+      } else {
+        set({ aiTrackLoading: false });
+      }
+    } catch {
+      set({ aiTrackLoading: false });
+    }
+  },
+
+  checkResolutions: async () => {
+    try {
+      await fetch("/api/ai-track", { method: "POST" });
+    } catch {
+      // silent
     }
   },
 

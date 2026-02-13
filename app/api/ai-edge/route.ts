@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { AIEdgePrediction } from "@/lib/types";
+import { prisma } from "@/lib/prisma";
 
 interface MarketInput {
   id: string;
@@ -10,6 +11,7 @@ interface MarketInput {
   probability: number;
   volume: number;
   change24h: number;
+  source: string;
 }
 
 interface CachedResult {
@@ -117,6 +119,23 @@ export async function POST(request: Request) {
         reasoning: String(item.reasoning || "").slice(0, 200),
       });
     }
+
+    // Persist predictions to DB (fire-and-forget)
+    prisma.aiPrediction.createMany({
+      data: predictions.map((p) => {
+        const market = marketMap.get(p.marketId);
+        return {
+          marketId: p.marketId,
+          marketTitle: market?.title || "",
+          source: market?.source || "unknown",
+          aiProbability: p.aiProbability,
+          marketProbability: p.marketProbability,
+          divergence: p.divergence,
+          confidence: p.confidence,
+          reasoning: p.reasoning,
+        };
+      }),
+    }).catch((err) => console.error("Failed to persist AI predictions:", err));
 
     cache = { predictions, timestamp: Date.now() };
     return NextResponse.json(predictions);

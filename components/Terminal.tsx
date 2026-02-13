@@ -8,6 +8,7 @@ import Watchlist from "./Watchlist";
 import AnalyticsPanel from "./AnalyticsPanel";
 import ArbitragePanel from "./ArbitragePanel";
 import NewsPanel from "./NewsPanel";
+import AITrackPanel from "./AITrackPanel";
 import Ticker from "./Ticker";
 import TrendingPanel from "./TrendingPanel";
 import MobileNav from "./MobileNav";
@@ -19,13 +20,14 @@ function TabContent({ tab }: { tab: RightPanelTab }) {
   if (tab === "watchlist") return <Watchlist />;
   if (tab === "analytics") return <AnalyticsPanel />;
   if (tab === "arbitrage") return <ArbitragePanel />;
+  if (tab === "aitrack") return <AITrackPanel />;
   return <NewsPanel />;
 }
 
 function TabBar({ rightPanelTab, setRightPanelTab }: { rightPanelTab: RightPanelTab; setRightPanelTab: (tab: RightPanelTab) => void }) {
   return (
     <div className="flex border-b border-terminal-border">
-      {(["watchlist", "analytics", "arbitrage", "news"] as RightPanelTab[]).map((tab) => (
+      {(["watchlist", "analytics", "arbitrage", "news", "aitrack"] as RightPanelTab[]).map((tab) => (
         <button
           key={tab}
           onClick={() => setRightPanelTab(tab)}
@@ -35,7 +37,7 @@ function TabBar({ rightPanelTab, setRightPanelTab }: { rightPanelTab: RightPanel
               : "text-terminal-muted hover:text-terminal-text"
           }`}
         >
-          {tab === "watchlist" ? "★ Watch" : tab === "analytics" ? "◆ Analytics" : tab === "arbitrage" ? "⇄ Arb" : "◎ News"}
+          {tab === "watchlist" ? "★ Watch" : tab === "analytics" ? "◆ Analytics" : tab === "arbitrage" ? "⇄ Arb" : tab === "news" ? "◎ News" : "⊙ AI Track"}
         </button>
       ))}
     </div>

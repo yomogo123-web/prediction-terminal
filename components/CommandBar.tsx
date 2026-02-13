@@ -9,7 +9,7 @@ import AlertBell from "./AlertBell";
 import AlertPanel from "./AlertPanel";
 
 const categories: Category[] = ["Politics", "Sports", "Crypto", "Tech", "World Events"];
-const tabCycle: RightPanelTab[] = ["watchlist", "analytics", "arbitrage", "news"];
+const tabCycle: RightPanelTab[] = ["watchlist", "analytics", "arbitrage", "news", "aitrack"];
 
 export default function CommandBar() {
   const { data: session } = useSession();
@@ -22,6 +22,7 @@ export default function CommandBar() {
   const rightPanelTab = useTerminalStore((s) => s.rightPanelTab);
   const setRightPanelTab = useTerminalStore((s) => s.setRightPanelTab);
   const setMobilePanel = useTerminalStore((s) => s.setMobilePanel);
+  const wsConnected = useTerminalStore((s) => s.wsConnected);
   const [showAlertPanel, setShowAlertPanel] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
@@ -133,10 +134,13 @@ export default function CommandBar() {
           const sources = new Set(markets.map((m) => m.source));
           sources.delete("mock");
           return (
-            <span className={`text-xs font-mono font-bold flex-shrink-0 ${
+            <span className={`text-xs font-mono font-bold flex-shrink-0 flex items-center gap-1 ${
               dataSource === "live" ? "text-terminal-green" : "text-terminal-amber"
             }`}>
               {dataSource === "live" ? `● LIVE (${sources.size} src)` : "● MOCK"}
+              {wsConnected && (
+                <span className="text-cyan-400 animate-pulse">WS</span>
+              )}
             </span>
           );
         })()}
