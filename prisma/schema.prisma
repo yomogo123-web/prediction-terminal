@@ -56,3 +56,35 @@ model AiPrediction {
   @@index([createdAt])
   @@index([resolution])
 }
+
+model SmartMoneyWallet {
+  id          String   @id @default(cuid())
+  proxyWallet String   @unique
+  userName    String
+  rank        Int
+  pnl         Float
+  volume      Float
+  xUsername   String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@index([rank])
+}
+
+model SmartMoneySnapshot {
+  id            String   @id @default(cuid())
+  proxyWallet   String
+  conditionId   String
+  marketTitle   String
+  outcomeIndex  Int      // 0 = YES, 1 = NO
+  size          Float
+  averagePrice  Float
+  currentValue  Float
+  cashPnl       Float
+  percentPnl    Float
+  snapshotAt    DateTime @default(now())
+
+  @@index([conditionId])
+  @@index([proxyWallet])
+  @@index([snapshotAt])
+}

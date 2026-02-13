@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Market, Category, SortField, SortDirection, RightPanelTab, Alert, ArbPair, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData, EdgeSignal, NewsItem, AIEdgePrediction, AITrackStats } from "./types";
+import { Market, Category, SortField, SortDirection, RightPanelTab, Alert, ArbPair, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData, EdgeSignal, NewsItem, AIEdgePrediction, AITrackStats, SmartMoneySignal } from "./types";
 import { generateMockMarkets } from "./mock-data";
 import { fetchMarkets, fetchPriceHistory } from "./api";
 import { findArbPairs } from "./arbitrage";
@@ -33,6 +33,10 @@ interface TerminalStore {
   // AI Track
   aiTrackStats: AITrackStats | null;
   aiTrackLoading: boolean;
+
+  // Smart Money
+  smartMoneySignals: SmartMoneySignal[];
+  smartMoneyLoading: boolean;
 
   // WebSocket
   wsConnected: boolean;
@@ -73,6 +77,9 @@ interface TerminalStore {
   fetchAITrack: () => Promise<void>;
   checkResolutions: () => Promise<void>;
 
+  // Smart Money actions
+  fetchSmartMoney: () => Promise<void>;
+
   // Mobile actions
   setMobilePanel: (panel: "table" | "detail" | "chart" | "tabs") => void;
   setRightPanelOpen: (open: boolean) => void;
@@ -97,6 +104,8 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   aiEdgeLoading: false,
   aiTrackStats: null,
   aiTrackLoading: false,
+  smartMoneySignals: [],
+  smartMoneyLoading: false,
   wsConnected: false,
   mobilePanel: "table",
   rightPanelOpen: false,
@@ -413,6 +422,37 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     }
   },
 
+  fetchSmartMoney: async () => {
+    set({ smartMoneyLoading: true });
+    try {
+      const { markets } = get();
+      // Build conditionMap from Polymarket markets that have conditionId
+      const conditionMap: Record<string, { marketId: string; title: string }> = {};
+      for (const m of markets) {
+        if (m.source === "polymarket" && m.conditionId) {
+          conditionMap[m.conditionId] = { marketId: m.id, title: m.title };
+        }
+      }
+      if (Object.keys(conditionMap).length === 0) {
+        set({ smartMoneyLoading: false });
+        return;
+      }
+      const res = await fetch("/api/smart-money", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conditionMap }),
+      });
+      if (res.ok) {
+        const signals: SmartMoneySignal[] = await res.json();
+        set({ smartMoneySignals: signals, smartMoneyLoading: false });
+      } else {
+        set({ smartMoneyLoading: false });
+      }
+    } catch {
+      set({ smartMoneyLoading: false });
+    }
+  },
+
   setMobilePanel: (panel) => {
     set({ mobilePanel: panel });
   },
@@ -532,6 +572,18 @@ export function useAIEdge(): Map<string, AIEdgePrediction> {
     }
     return map;
   }, [predictions]);
+}
+
+export function useSmartMoneyMap(): Map<string, SmartMoneySignal> {
+  const signals = useTerminalStore((s) => s.smartMoneySignals);
+
+  return useMemo(() => {
+    const map = new Map<string, SmartMoneySignal>();
+    for (const s of signals) {
+      map.set(s.marketId, s);
+    }
+    return map;
+  }, [signals]);
 }
 
 const ALL_CATEGORIES: Category[] = ["Politics", "Sports", "Crypto", "Tech", "World Events"];

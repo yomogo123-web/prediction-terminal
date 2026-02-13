@@ -20,6 +20,7 @@ export interface Market {
   endDate: string; // ISO date string
   source: "polymarket" | "kalshi" | "manifold" | "predictit" | "mock";
   clobTokenId?: string; // Polymarket CLOB token ID for price history
+  conditionId?: string; // Polymarket condition ID for smart money tracking
   sourceUrl?: string; // Link to market on source platform
 }
 
@@ -169,6 +170,41 @@ export interface AITrackStats {
     aiProbability: number; marketProbability: number;
     divergence: number; confidence: string; createdAt: string;
   }[];
+}
+
+export interface SmartMoneyTrader {
+  rank: number;
+  userName: string;
+  proxyWallet: string;
+  pnl: number;
+  volume: number;
+  xUsername?: string;
+}
+
+export interface SmartMoneyPosition {
+  traderWallet: string;
+  traderName: string;
+  traderRank: number;
+  traderPnl: number;
+  conditionId: string;
+  outcomeIndex: number;   // 0 = YES, 1 = NO
+  size: number;
+  averagePrice: number;
+  currentValue: number;
+  cashPnl: number;
+  percentPnl: number;
+}
+
+export interface SmartMoneySignal {
+  marketId: string;
+  conditionId: string;
+  positions: SmartMoneyPosition[];
+  totalYesSize: number;
+  totalNoSize: number;
+  yesTraderCount: number;
+  noTraderCount: number;
+  netDirection: "YES" | "NO" | "MIXED";
+  strength: "STRONG" | "MODERATE" | "WEAK";
 }
 
 export interface MarketAnalytics {

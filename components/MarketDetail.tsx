@@ -1,6 +1,6 @@
 "use client";
 
-import { useTerminalStore, useSelectedMarket, useEdgeSignals, useAIEdge } from "@/lib/store";
+import { useTerminalStore, useSelectedMarket, useEdgeSignals, useAIEdge, useSmartMoneyMap } from "@/lib/store";
 import { useEffect, useState } from "react";
 
 function formatVolume(v: number): string {
@@ -24,6 +24,10 @@ export default function MarketDetail() {
   const aiEdge = useAIEdge();
   const aiPrediction = selectedMarket ? aiEdge.get(selectedMarket.id) : null;
   const aiEdgeLoading = useTerminalStore((s) => s.aiEdgeLoading);
+
+  const smartMoneyMap = useSmartMoneyMap();
+  const smartMoneySignal = selectedMarket ? smartMoneyMap.get(selectedMarket.id) : null;
+  const smartMoneyLoading = useTerminalStore((s) => s.smartMoneyLoading);
 
   const isWatched = selectedMarket
     ? watchlist.includes(selectedMarket.id)
@@ -240,6 +244,109 @@ export default function MarketDetail() {
             </div>
           </div>
         ) : null}
+
+        {/* Smart Money */}
+        {selectedMarket.source === "polymarket" && (
+          smartMoneyLoading ? (
+            <div className="bg-terminal-bg border border-terminal-border p-2 animate-pulse">
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="text-terminal-muted text-[9px] uppercase tracking-wider">Smart Money</span>
+                <span className="text-[9px] text-terminal-amber">loading...</span>
+              </div>
+              <div className="space-y-1.5">
+                <div className="h-3 bg-terminal-border/50 rounded w-3/4"></div>
+                <div className="h-3 bg-terminal-border/50 rounded w-1/2"></div>
+              </div>
+            </div>
+          ) : smartMoneySignal ? (
+            <div className="bg-terminal-bg border border-terminal-border p-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-terminal-muted text-[9px] uppercase tracking-wider">Smart Money</span>
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 border ${
+                  smartMoneySignal.strength === "STRONG"
+                    ? "text-terminal-green border-terminal-green/30"
+                    : smartMoneySignal.strength === "MODERATE"
+                    ? "text-terminal-amber border-terminal-amber/30"
+                    : "text-terminal-muted border-terminal-border"
+                }`}>
+                  {smartMoneySignal.strength}
+                </span>
+              </div>
+              <div className="space-y-1 text-[10px] font-mono">
+                <div className="flex justify-between">
+                  <span className="text-terminal-muted">Direction</span>
+                  <span className={`font-bold ${
+                    smartMoneySignal.netDirection === "YES"
+                      ? "text-terminal-green"
+                      : smartMoneySignal.netDirection === "NO"
+                      ? "text-terminal-red"
+                      : "text-terminal-amber"
+                  }`}>
+                    {smartMoneySignal.netDirection}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-terminal-muted">YES holders</span>
+                  <span className="text-terminal-text">
+                    {smartMoneySignal.yesTraderCount} trader{smartMoneySignal.yesTraderCount !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-terminal-muted">NO holders</span>
+                  <span className="text-terminal-text">
+                    {smartMoneySignal.noTraderCount} trader{smartMoneySignal.noTraderCount !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="border-t border-terminal-border/50 pt-1 mt-1 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-terminal-muted">YES size</span>
+                    <span className="text-terminal-text">
+                      {smartMoneySignal.totalYesSize >= 1000
+                        ? `${(smartMoneySignal.totalYesSize / 1000).toFixed(1)}K`
+                        : smartMoneySignal.totalYesSize.toFixed(0)} tokens
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-terminal-muted">NO size</span>
+                    <span className="text-terminal-text">
+                      {smartMoneySignal.totalNoSize >= 1000
+                        ? `${(smartMoneySignal.totalNoSize / 1000).toFixed(1)}K`
+                        : smartMoneySignal.totalNoSize.toFixed(0)} tokens
+                    </span>
+                  </div>
+                </div>
+                {smartMoneySignal.positions.length > 0 && (
+                  <div className="border-t border-terminal-border/50 pt-1 mt-1">
+                    <div className="text-terminal-muted mb-1">Top positions:</div>
+                    {smartMoneySignal.positions.slice(0, 3).map((pos, i) => (
+                      <div key={i} className="flex justify-between items-center">
+                        <span className="text-terminal-muted">#{pos.traderRank} {pos.traderName}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className={pos.outcomeIndex === 0 ? "text-terminal-green" : "text-terminal-red"}>
+                            {pos.outcomeIndex === 0 ? "YES" : "NO"}
+                          </span>
+                          <span className="text-terminal-muted">@{(pos.averagePrice * 100).toFixed(0)}¢</span>
+                          <span className={pos.cashPnl >= 0 ? "text-terminal-green" : "text-terminal-red"}>
+                            {pos.cashPnl >= 0 ? "+" : ""}${Math.abs(pos.cashPnl) >= 1000
+                              ? `${(pos.cashPnl / 1000).toFixed(0)}K`
+                              : pos.cashPnl.toFixed(0)}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-terminal-bg border border-terminal-border p-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-terminal-muted text-[9px] uppercase tracking-wider">Smart Money</span>
+              </div>
+              <span className="text-[10px] font-mono text-terminal-muted">No top-trader positions detected</span>
+            </div>
+          )
+        )}
 
         {/* Source link */}
         {selectedMarket.sourceUrl && (

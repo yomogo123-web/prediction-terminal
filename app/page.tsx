@@ -18,6 +18,7 @@ export default function Home() {
   const fetchAIEdge = useTerminalStore((s) => s.fetchAIEdge);
   const fetchAITrack = useTerminalStore((s) => s.fetchAITrack);
   const checkResolutions = useTerminalStore((s) => s.checkResolutions);
+  const fetchSmartMoney = useTerminalStore((s) => s.fetchSmartMoney);
   const simulatePriceUpdate = useTerminalStore((s) => s.simulatePriceUpdate);
   const markets = useTerminalStore((s) => s.markets);
   const loading = useTerminalStore((s) => s.loading);
@@ -108,6 +109,16 @@ export default function Home() {
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [markets.length, checkResolutions]);
+
+  // Fetch smart money signals on init and poll every 10 minutes
+  useEffect(() => {
+    if (markets.length === 0) return;
+    fetchSmartMoney();
+    const interval = setInterval(() => {
+      fetchSmartMoney();
+    }, 10 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [markets.length, fetchSmartMoney]);
 
   // Check alerts callback
   const runAlertCheck = useCallback(() => {

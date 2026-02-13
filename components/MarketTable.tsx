@@ -1,6 +1,6 @@
 "use client";
 
-import { useTerminalStore, useFilteredMarkets, useEdgeSignals, useAIEdge } from "@/lib/store";
+import { useTerminalStore, useFilteredMarkets, useEdgeSignals, useAIEdge, useSmartMoneyMap } from "@/lib/store";
 import { SortField } from "@/lib/types";
 import { useEffect, useRef, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -35,6 +35,7 @@ export default function MarketTable() {
   const filteredMarkets = useFilteredMarkets();
   const edgeSignals = useEdgeSignals();
   const aiEdge = useAIEdge();
+  const smartMoneyMap = useSmartMoneyMap();
   const selectedMarketId = useTerminalStore((s) => s.selectedMarketId);
   const selectMarket = useTerminalStore((s) => s.selectMarket);
   const setSort = useTerminalStore((s) => s.setSort);
@@ -127,6 +128,9 @@ export default function MarketTable() {
         </div>
         <div className="w-28 px-3 py-2 text-left hidden lg:block">CAT</div>
         <div className="w-16 px-3 py-2 text-center hidden lg:block">SRC</div>
+        <div className="w-10 px-1 py-2 text-center hidden lg:block">
+          <span className="text-terminal-muted">SM</span>
+        </div>
         <div className="w-16 px-3 py-2 text-right hidden lg:block">
           <button onClick={() => setSort("edge")} className="hover:text-terminal-text">
             EDGE{sortIndicator("edge")}
@@ -231,6 +235,28 @@ export default function MarketTable() {
               <div className={`w-16 px-3 text-center text-[10px] hidden lg:block ${sourceLabels[market.source]?.color || "text-terminal-muted"}`}>
                 {sourceLabels[market.source]?.label || market.source}
               </div>
+              {(() => {
+                const sm = smartMoneyMap.get(market.id);
+                if (!sm) return (
+                  <div className="w-10 px-1 text-center text-[10px] text-terminal-muted hidden lg:block">&middot;</div>
+                );
+                const count = sm.yesTraderCount + sm.noTraderCount;
+                const label = sm.netDirection === "YES"
+                  ? `${count}Y`
+                  : sm.netDirection === "NO"
+                  ? `${count}N`
+                  : `${count}M`;
+                const color = sm.netDirection === "YES"
+                  ? "text-terminal-green"
+                  : sm.netDirection === "NO"
+                  ? "text-terminal-red"
+                  : "text-amber-400";
+                return (
+                  <div className={`w-10 px-1 text-center text-[10px] font-bold hidden lg:block ${color}`}>
+                    {label}
+                  </div>
+                );
+              })()}
               {(() => {
                 const edge = edgeSignals.get(market.id);
                 const score = edge?.edgeScore || 0;

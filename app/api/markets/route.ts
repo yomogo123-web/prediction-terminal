@@ -65,6 +65,8 @@ async function fetchPolymarket(): Promise<Market[]> {
       let clobTokenId: string | undefined;
       try { const ids = JSON.parse(mkt.clobTokenIds || "[]"); if (ids.length) clobTokenId = ids[0]; } catch {}
 
+      const conditionId = typeof mkt.conditionId === "string" ? mkt.conditionId : undefined;
+
       const change24h = typeof mkt.oneDayPriceChange === "number"
         ? Math.round(mkt.oneDayPriceChange * 10000) / 100 : 0;
 
@@ -85,6 +87,7 @@ async function fetchPolymarket(): Promise<Market[]> {
         endDate: mkt.endDate || event.endDate || "",
         source: "polymarket",
         clobTokenId,
+        conditionId,
         sourceUrl: `https://polymarket.com/event/${event.slug}`,
       });
     }
