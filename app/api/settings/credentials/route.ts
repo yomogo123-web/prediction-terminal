@@ -9,21 +9,38 @@ async function getUserId() {
   return (session?.user as { id?: string })?.id || null;
 }
 
-// GET: Return credential statuses (configured true/false per platform)
+// GET: Return credential statuses (configured true/false per platform, with method)
 export async function GET() {
   const userId = await getUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const credentials = await prisma.platformCredential.findMany({
-    where: { userId },
-    select: { platform: true },
-  });
+  const [credentials, user] = await Promise.all([
+    prisma.platformCredential.findMany({
+      where: { userId },
+      select: { platform: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { polymarketWallet: true },
+    }),
+  ]);
 
   const configuredPlatforms = new Set(credentials.map((c) => c.platform));
-  const statuses = ["polymarket", "kalshi", "manifold"].map((platform) => ({
-    platform,
-    configured: configuredPlatforms.has(platform),
-  }));
+  const hasPolymarketWallet = !!user?.polymarketWallet;
+
+  const statuses = ["polymarket", "kalshi", "manifold"].map((platform) => {
+    const hasApiKey = configuredPlatforms.has(platform);
+
+    if (platform === "polymarket" && hasPolymarketWallet) {
+      return { platform, configured: true, method: "wallet" as const };
+    }
+
+    return {
+      platform,
+      configured: hasApiKey,
+      method: hasApiKey ? ("apikey" as const) : ("none" as const),
+    };
+  });
 
   return NextResponse.json(statuses);
 }

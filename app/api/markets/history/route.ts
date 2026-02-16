@@ -1,7 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PricePoint } from "@/lib/types";
+import { getDomeClient } from "@/lib/dome";
 
 const CLOB_API = "https://clob.polymarket.com";
+
+async function fetchPolymarketHistoryViaDome(conditionId: string): Promise<PricePoint[]> {
+  const dome = getDomeClient();
+  if (!dome) return [];
+
+  const endTime = Math.floor(Date.now() / 1000);
+  const startTime = endTime - 90 * 86400; // 90 days
+
+  const resp = await dome.polymarket.markets.getCandlesticks({
+    condition_id: conditionId,
+    start_time: startTime,
+    end_time: endTime,
+    interval: 1440, // daily
+  });
+
+  const points: PricePoint[] = [];
+  for (const [candles] of resp.candlesticks || []) {
+    for (const c of candles) {
+      points.push({
+        time: c.end_period_ts,
+        probability: Math.round(c.price.close * 10000) / 100,
+      });
+    }
+  }
+  return points;
+}
 
 async function fetchPolymarketHistory(token: string): Promise<PricePoint[]> {
   const res = await fetch(
@@ -113,6 +140,7 @@ function generateSyntheticHistory(currentProb: number): PricePoint[] {
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
   const source = request.nextUrl.searchParams.get("source") || "polymarket";
+  const conditionId = request.nextUrl.searchParams.get("conditionId");
 
   if (!token) {
     return NextResponse.json({ error: "Missing token parameter" }, { status: 400 });
@@ -122,9 +150,17 @@ export async function GET(request: NextRequest) {
     let history: PricePoint[];
 
     switch (source) {
-      case "polymarket":
+      case "polymarket": {
+        // Prefer Dome candlesticks when conditionId is available and Dome is configured
+        const dome = getDomeClient();
+        if (dome && conditionId) {
+          history = await fetchPolymarketHistoryViaDome(conditionId);
+          if (history.length > 0) break;
+        }
+        // Fallback to direct CLOB API
         history = await fetchPolymarketHistory(token);
         break;
+      }
       case "kalshi":
         history = await fetchKalshiHistory(token);
         break;

@@ -1,5 +1,6 @@
 import { TradingAdapter, MarketRef } from "./adapter";
 import { OrderBook, OrderBookLevel, TradeRequest, TradeResponse, TradeEstimate } from "../trading-types";
+import { getKalshiOrdersApi, getBuilderCode } from "../kalshi-sdk";
 
 const KALSHI_API = "https://api.elections.kalshi.com/trade-api/v2";
 
@@ -46,12 +47,52 @@ export class KalshiAdapter implements TradingAdapter {
   }
 
   async placeOrder(order: TradeRequest, credentials: Record<string, string>): Promise<TradeResponse> {
+    const ticker = order.marketId.replace(/^kal-/, "");
+
+    // Try RSA-PSS SDK auth first
+    const ordersApi = getKalshiOrdersApi();
+    if (ordersApi && credentials.authMethod === "rsa") {
+      try {
+        const createReq: {
+          ticker: string;
+          action: "buy";
+          side: "yes" | "no";
+          type?: "market" | "limit";
+          count: number;
+          yes_price?: number;
+          no_price?: number;
+        } = {
+          ticker,
+          action: "buy",
+          side: order.side as "yes" | "no",
+          type: order.type as "market" | "limit",
+          count: Math.floor(order.amount),
+        };
+        if (order.type === "limit" && order.limitPrice) {
+          if (order.side === "yes") createReq.yes_price = order.limitPrice;
+          else createReq.no_price = order.limitPrice;
+        }
+
+        const resp = await ordersApi.createOrder(createReq as never);
+        const data = resp.data;
+        return {
+          success: true,
+          orderId: data.order?.order_id,
+          status: data.order?.status === "executed" ? "filled" : "open",
+          fillPrice: data.order?.yes_price,
+          shares: data.order?.fill_count,
+        };
+      } catch (e) {
+        return { success: false, status: "rejected", error: `Kalshi SDK order failed: ${e}` };
+      }
+    }
+
+    // Fallback: legacy email/password auth
     if (!credentials.email || !credentials.password) {
       return { success: false, status: "rejected", error: "Missing Kalshi credentials" };
     }
 
     try {
-      // First authenticate to get session token
       const authRes = await fetch(`${KALSHI_API}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -63,17 +104,20 @@ export class KalshiAdapter implements TradingAdapter {
       const authData = await authRes.json();
       const token = authData.token;
 
-      const ticker = order.marketId.replace(/^kal-/, "");
       const body: Record<string, unknown> = {
         ticker,
         action: "buy",
         side: order.side,
         type: order.type,
-        count: Math.floor(order.amount), // Kalshi uses contract count
+        count: Math.floor(order.amount),
       };
       if (order.type === "limit" && order.limitPrice) {
         body.yes_price = order.side === "yes" ? order.limitPrice : undefined;
         body.no_price = order.side === "no" ? order.limitPrice : undefined;
+      }
+      const builderCode = getBuilderCode();
+      if (builderCode) {
+        body.builder_code = builderCode;
       }
 
       const res = await fetch(`${KALSHI_API}/portfolio/orders`, {
@@ -104,6 +148,18 @@ export class KalshiAdapter implements TradingAdapter {
   }
 
   async cancelOrder(platformOrderId: string, credentials: Record<string, string>): Promise<boolean> {
+    // Try SDK auth first
+    const ordersApi = getKalshiOrdersApi();
+    if (ordersApi && credentials.authMethod === "rsa") {
+      try {
+        await ordersApi.cancelOrder(platformOrderId);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    // Fallback: legacy email/password
     try {
       const authRes = await fetch(`${KALSHI_API}/login`, {
         method: "POST",

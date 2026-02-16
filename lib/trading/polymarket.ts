@@ -1,5 +1,7 @@
 import { TradingAdapter, MarketRef } from "./adapter";
 import { OrderBook, OrderBookLevel, TradeRequest, TradeResponse, TradeEstimate } from "../trading-types";
+import { getDomeClient } from "../dome";
+import { PolymarketRouter } from "@dome-api/sdk";
 
 export class PolymarketAdapter implements TradingAdapter {
   async getOrderBook(market: MarketRef): Promise<OrderBook> {
@@ -42,6 +44,40 @@ export class PolymarketAdapter implements TradingAdapter {
   }
 
   async placeOrder(order: TradeRequest, credentials: Record<string, string>): Promise<TradeResponse> {
+    // Dome Order Router path — wallet-linked users
+    if (credentials.domeLinked === "true" && credentials.walletAddress) {
+      const dome = getDomeClient();
+      const apiKey = process.env.DOME_API_KEY;
+      if (dome && apiKey) {
+        try {
+          const router = new PolymarketRouter({ apiKey });
+          const price = order.type === "limit" && order.limitPrice
+            ? order.limitPrice / 100
+            : 0.5; // Default for market orders — router handles execution
+
+          const result = await router.placeOrder({
+            userId: credentials.walletAddress,
+            marketId: order.marketId.replace(/^poly-/, ""),
+            side: "buy",
+            size: order.amount,
+            price,
+            walletAddress: credentials.walletAddress,
+            orderType: order.type === "limit" ? "GTC" : "FOK",
+          });
+
+          const data = result as { orderId?: string; status?: string };
+          return {
+            success: true,
+            orderId: data.orderId,
+            status: data.status === "MATCHED" ? "filled" : "open",
+          };
+        } catch (e) {
+          return { success: false, status: "rejected", error: `Dome order failed: ${e}` };
+        }
+      }
+    }
+
+    // Direct CLOB API path — API key users
     if (!credentials.apiKey || !credentials.apiSecret || !credentials.passphrase) {
       return { success: false, status: "rejected", error: "Missing Polymarket credentials" };
     }
@@ -90,6 +126,29 @@ export class PolymarketAdapter implements TradingAdapter {
   }
 
   async cancelOrder(platformOrderId: string, credentials: Record<string, string>): Promise<boolean> {
+    // Dome cancel path for wallet-linked users
+    if (credentials.domeLinked === "true" && credentials.walletAddress) {
+      const apiKey = process.env.DOME_API_KEY;
+      if (apiKey) {
+        try {
+          const router = new PolymarketRouter({ apiKey });
+          await router.cancelOrder({
+            orderId: platformOrderId,
+            signerAddress: credentials.walletAddress,
+            credentials: {
+              apiKey: "",
+              apiSecret: "",
+              apiPassphrase: "",
+            },
+          });
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    }
+
+    // Direct CLOB cancel path
     try {
       const res = await fetch("https://clob.polymarket.com/cancel", {
         method: "POST",

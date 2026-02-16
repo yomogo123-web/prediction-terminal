@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { Market, Category } from "@/lib/types";
+import { getDomeClient } from "@/lib/dome";
+import type { DomeClient } from "@dome-api/sdk";
 
 // ─── Category Mapping ───────────────────────────────────────────────
 
@@ -265,12 +267,104 @@ async function fetchPredictIt(): Promise<Market[]> {
   return markets;
 }
 
+// ─── Dome: Polymarket via Dome SDK ───────────────────────────────
+
+async function fetchPolymarketViaDome(dome: DomeClient): Promise<Market[]> {
+  const markets: Market[] = [];
+  const seen = new Set<string>();
+
+  // Fetch open events with nested markets
+  const resp = await dome.polymarket.markets.getEvents({
+    status: "open",
+    include_markets: true,
+    limit: 100,
+  });
+
+  for (const event of resp.events || []) {
+    const eventMarkets = (event.markets || []).filter(
+      (m) => m.status === "open"
+    );
+    if (eventMarkets.length === 0) continue;
+
+    const category = categorize(
+      (event.tags || []).join(" ") + " " + event.title
+    );
+
+    for (const mkt of eventMarkets) {
+      // Dome markets use condition_id as primary key
+      const id = `poly-${mkt.condition_id}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+
+      // side_a is typically YES
+      const sideATokenId = mkt.side_a?.id;
+
+      markets.push({
+        id,
+        title: eventMarkets.length === 1 ? event.title : mkt.title,
+        description: event.subtitle || mkt.title,
+        category,
+        probability: 50, // Will be enriched by price endpoint if needed
+        previousProbability: 50,
+        volume: mkt.volume_total || 0,
+        change24h: 0,
+        priceHistory: [],
+        status: "active",
+        endDate: mkt.end_time ? new Date(mkt.end_time * 1000).toISOString() : "",
+        source: "polymarket",
+        clobTokenId: sideATokenId,
+        conditionId: mkt.condition_id,
+        sourceUrl: `https://polymarket.com/event/${event.event_slug}`,
+      });
+    }
+  }
+  return markets;
+}
+
+// ─── Dome: Kalshi via Dome SDK ──────────────────────────────────
+
+async function fetchKalshiViaDome(dome: DomeClient): Promise<Market[]> {
+  const markets: Market[] = [];
+
+  const resp = await dome.kalshi.markets.getMarkets({
+    status: "open",
+    limit: 200,
+  });
+
+  for (const mkt of resp.markets || []) {
+    const prob = typeof mkt.last_price === "number" && mkt.last_price > 0
+      ? mkt.last_price
+      : 50;
+    const clampedProb = Math.max(1, Math.min(99, prob));
+
+    markets.push({
+      id: `kal-${mkt.market_ticker}`,
+      title: mkt.title,
+      description: mkt.title,
+      category: categorize(mkt.title + " " + (mkt.event_ticker || "")),
+      probability: clampedProb,
+      previousProbability: clampedProb,
+      volume: mkt.volume || 0,
+      change24h: 0,
+      priceHistory: [],
+      status: "active",
+      endDate: mkt.end_time ? new Date(mkt.end_time * 1000).toISOString() : "",
+      source: "kalshi",
+      clobTokenId: `${mkt.event_ticker}:${mkt.market_ticker}`,
+      sourceUrl: `https://kalshi.com/markets/${mkt.market_ticker}`,
+    });
+  }
+  return markets;
+}
+
 // ─── Aggregator ─────────────────────────────────────────────────────
 
 export async function GET() {
+  const dome = getDomeClient();
+
   const results = await Promise.allSettled([
-    fetchPolymarket(),
-    fetchKalshi(),
+    dome ? fetchPolymarketViaDome(dome) : fetchPolymarket(),
+    dome ? fetchKalshiViaDome(dome) : fetchKalshi(),
     fetchManifold(),
     fetchPredictIt(),
   ]);

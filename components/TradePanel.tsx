@@ -8,6 +8,7 @@ export default function TradePanel() {
   const { data: session } = useSession();
   const selectedMarket = useSelectedMarket();
   const credentialStatuses = useTerminalStore((s) => s.credentialStatuses);
+  const polymarketLinked = useTerminalStore((s) => s.polymarketLinked);
   const orderFormSide = useTerminalStore((s) => s.orderFormSide);
   const orderFormType = useTerminalStore((s) => s.orderFormType);
   const orderFormAmount = useTerminalStore((s) => s.orderFormAmount);
@@ -30,7 +31,8 @@ export default function TradePanel() {
   }
 
   const platformCred = credentialStatuses.find((c) => c.platform === selectedMarket.source);
-  const hasCredentials = platformCred?.configured || false;
+  const hasCredentials = platformCred?.configured || (selectedMarket.source === "polymarket" && polymarketLinked);
+  const isPolymarketWallet = selectedMarket.source === "polymarket" && polymarketLinked;
 
   // Fetch estimate when form changes
   useEffect(() => {
@@ -199,20 +201,27 @@ export default function TradePanel() {
           onClick={() => setShowCredentialsModal(true)}
           className="w-full py-2 text-xs font-mono font-bold border border-terminal-amber text-terminal-amber hover:bg-terminal-amber/10 transition-colors"
         >
-          CONFIGURE {selectedMarket.source.toUpperCase()}
+          {selectedMarket.source === "polymarket" ? "CONNECT WALLET" : `CONFIGURE ${selectedMarket.source.toUpperCase()}`}
         </button>
       ) : (
-        <button
-          onClick={handlePlaceOrder}
-          disabled={!isValidAmount || tradeSubmitting}
-          className={`w-full py-2 text-xs font-mono font-bold border transition-colors disabled:opacity-30 ${
-            orderFormSide === "yes"
-              ? "border-terminal-green text-terminal-green hover:bg-terminal-green/10"
-              : "border-terminal-red text-terminal-red hover:bg-terminal-red/10"
-          }`}
-        >
-          {tradeSubmitting ? "SUBMITTING..." : `PLACE ${orderFormType.toUpperCase()} ORDER`}
-        </button>
+        <>
+          <button
+            onClick={handlePlaceOrder}
+            disabled={!isValidAmount || tradeSubmitting}
+            className={`w-full py-2 text-xs font-mono font-bold border transition-colors disabled:opacity-30 ${
+              orderFormSide === "yes"
+                ? "border-terminal-green text-terminal-green hover:bg-terminal-green/10"
+                : "border-terminal-red text-terminal-red hover:bg-terminal-red/10"
+            }`}
+          >
+            {tradeSubmitting ? "SUBMITTING..." : `PLACE ${orderFormType.toUpperCase()} ORDER`}
+          </button>
+          {isPolymarketWallet && (
+            <div className="text-center text-[9px] text-terminal-muted mt-1">
+              ROUTED VIA DOME
+            </div>
+          )}
+        </>
       )}
     </div>
   );

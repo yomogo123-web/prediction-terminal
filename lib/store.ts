@@ -103,6 +103,10 @@ interface TerminalStore {
   setMobilePanel: (panel: "table" | "detail" | "chart" | "tabs") => void;
   setRightPanelOpen: (open: boolean) => void;
 
+  // Polymarket Dome wallet link
+  polymarketLinked: boolean;
+  polymarketWallet: string | null;
+
   // Trading state
   orderBook: OrderBook | null;
   orderBookLoading: boolean;
@@ -117,6 +121,9 @@ interface TerminalStore {
   tradeSubmitting: boolean;
   tradeConfirmPending: TradeRequest | null;
   showCredentialsModal: boolean;
+
+  // Polymarket Dome actions
+  checkPolymarketLink: () => Promise<void>;
 
   // Trading actions
   fetchOrderBook: (marketId: string, source: string, clobTokenId?: string) => Promise<void>;
@@ -165,6 +172,10 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   wsConnected: false,
   mobilePanel: "table",
   rightPanelOpen: false,
+
+  // Polymarket Dome wallet link
+  polymarketLinked: false,
+  polymarketWallet: null,
 
   // Trading initial state
   orderBook: null,
@@ -356,7 +367,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
     }));
 
     try {
-      const history = await fetchPriceHistory(token, market.source, market.probability);
+      const history = await fetchPriceHistory(token, market.source, market.probability, market.conditionId);
       set((state) => ({
         markets: state.markets.map((m) =>
           m.id === marketId ? { ...m, priceHistory: history } : m
@@ -565,6 +576,22 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       cachedCategoryCorrelation: computeCategoryCorrelation(markets),
       cachedMarketCorrelation: computeMarketCorrelation(markets),
     });
+  },
+
+  // Polymarket Dome wallet check
+  checkPolymarketLink: async () => {
+    try {
+      const res = await fetch("/api/dome/wallet");
+      if (res.ok) {
+        const data = await res.json();
+        set({
+          polymarketLinked: !!data.linked,
+          polymarketWallet: data.wallet || null,
+        });
+      }
+    } catch {
+      // silent
+    }
   },
 
   // Trading actions

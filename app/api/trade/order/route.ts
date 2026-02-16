@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAdapter } from "@/lib/trading";
 import { getDecryptedCredentials } from "@/lib/credentials";
+import { getBuilderCode } from "@/lib/kalshi-sdk";
 
 async function getUserId() {
   const session = await getServerSession(authOptions);
@@ -80,14 +81,34 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Type must be 'market' or 'limit'" }, { status: 400 });
   }
 
-  // Get credentials
-  const credentials = await getDecryptedCredentials(userId, source);
+  // Get credentials — check Dome wallet link first for Polymarket
+  let credentials: Record<string, string> | null = null;
+  let isDomeRouted = false;
+
+  if (source === "polymarket") {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { polymarketWallet: true },
+    });
+    if (user?.polymarketWallet) {
+      credentials = { domeLinked: "true", walletAddress: user.polymarketWallet };
+      isDomeRouted = true;
+    }
+  }
+
+  if (!credentials) {
+    credentials = await getDecryptedCredentials(userId, source);
+  }
+
   if (!credentials) {
     return NextResponse.json(
       { error: "no_credentials", platform: source },
       { status: 400 }
     );
   }
+
+  // Attach builder code for Kalshi orders
+  const builderCode = source === "kalshi" ? getBuilderCode() : null;
 
   // Create order record
   const order = await prisma.order.create({
@@ -100,6 +121,8 @@ export async function POST(req: Request) {
       amount,
       price: limitPrice || null,
       status: "pending",
+      builderCode,
+      routedViaDome: isDomeRouted,
     },
   });
 

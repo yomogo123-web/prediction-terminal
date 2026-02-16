@@ -85,6 +85,7 @@ export interface PositionRecord {
 export interface CredentialStatus {
   platform: string;
   configured: boolean;
+  method?: "wallet" | "apikey" | "none";
 }
 
 export interface PolymarketCredentials {
@@ -94,8 +95,11 @@ export interface PolymarketCredentials {
 }
 
 export interface KalshiCredentials {
-  email: string;
-  password: string;
+  email?: string;
+  password?: string;
+  apiKey?: string;
+  privateKeyPem?: string;
+  authMethod?: "password" | "rsa";
 }
 
 export interface ManifoldCredentials {

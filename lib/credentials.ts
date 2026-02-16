@@ -27,11 +27,23 @@ function getEnvCredentials(platform: string): Record<string, string> | null {
       passphrase: process.env.POLYMARKET_PASSPHRASE || "",
     };
   }
-  if (platform === "kalshi" && process.env.KALSHI_EMAIL) {
-    return {
-      email: process.env.KALSHI_EMAIL,
-      password: process.env.KALSHI_PASSWORD || "",
-    };
+  if (platform === "kalshi") {
+    // Prefer RSA key auth (new)
+    if (process.env.KALSHI_API_KEY && process.env.KALSHI_PRIVATE_KEY_PEM) {
+      return {
+        apiKey: process.env.KALSHI_API_KEY,
+        privateKeyPem: process.env.KALSHI_PRIVATE_KEY_PEM,
+        authMethod: "rsa",
+      };
+    }
+    // Fallback to email/password (legacy)
+    if (process.env.KALSHI_EMAIL) {
+      return {
+        email: process.env.KALSHI_EMAIL,
+        password: process.env.KALSHI_PASSWORD || "",
+        authMethod: "password",
+      };
+    }
   }
   if (platform === "manifold" && process.env.MANIFOLD_API_KEY) {
     return { apiKey: process.env.MANIFOLD_API_KEY };
