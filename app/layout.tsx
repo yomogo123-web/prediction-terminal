@@ -4,7 +4,7 @@ import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
   title: "PREDICT Terminal",
-  description: "Bloomberg-style prediction markets terminal",
+  description: "Real-time prediction markets tracker — prices, charts, and trading across Polymarket, Kalshi, PredictIt, and Manifold.",
 };
 
 export const viewport = {
