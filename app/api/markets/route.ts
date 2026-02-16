@@ -267,93 +267,53 @@ async function fetchPredictIt(): Promise<Market[]> {
   return markets;
 }
 
-// ─── Dome: Polymarket via Dome SDK ───────────────────────────────
-
-async function fetchPolymarketViaDome(dome: DomeClient): Promise<Market[]> {
-  const markets: Market[] = [];
-  const seen = new Set<string>();
-
-  // Fetch open events with nested markets
-  const resp = await dome.polymarket.markets.getEvents({
-    status: "open",
-    include_markets: true,
-    limit: 100,
-  });
-
-  for (const event of resp.events || []) {
-    const eventMarkets = (event.markets || []).filter(
-      (m) => m.status === "open"
-    );
-    if (eventMarkets.length === 0) continue;
-
-    const category = categorize(
-      (event.tags || []).join(" ") + " " + event.title
-    );
-
-    for (const mkt of eventMarkets) {
-      // Dome markets use condition_id as primary key
-      const id = `poly-${mkt.condition_id}`;
-      if (seen.has(id)) continue;
-      seen.add(id);
-
-      // side_a is typically YES
-      const sideATokenId = mkt.side_a?.id;
-
-      markets.push({
-        id,
-        title: eventMarkets.length === 1 ? event.title : mkt.title,
-        description: event.subtitle || mkt.title,
-        category,
-        probability: 50, // Will be enriched by price endpoint if needed
-        previousProbability: 50,
-        volume: mkt.volume_total || 0,
-        change24h: 0,
-        priceHistory: [],
-        status: "active",
-        endDate: mkt.end_time ? new Date(mkt.end_time * 1000).toISOString() : "",
-        source: "polymarket",
-        clobTokenId: sideATokenId,
-        conditionId: mkt.condition_id,
-        sourceUrl: `https://polymarket.com/event/${event.event_slug}`,
-      });
-    }
-  }
-  return markets;
-}
-
 // ─── Dome: Kalshi via Dome SDK ──────────────────────────────────
 
 async function fetchKalshiViaDome(dome: DomeClient): Promise<Market[]> {
   const markets: Market[] = [];
 
-  const resp = await dome.kalshi.markets.getMarkets({
-    status: "open",
-    limit: 200,
-  });
+  // Dome Kalshi API max limit is 100 — paginate up to 3 pages
+  const maxPages = 3;
+  let offset = 0;
 
-  for (const mkt of resp.markets || []) {
-    const prob = typeof mkt.last_price === "number" && mkt.last_price > 0
-      ? mkt.last_price
-      : 50;
-    const clampedProb = Math.max(1, Math.min(99, prob));
-
-    markets.push({
-      id: `kal-${mkt.market_ticker}`,
-      title: mkt.title,
-      description: mkt.title,
-      category: categorize(mkt.title + " " + (mkt.event_ticker || "")),
-      probability: clampedProb,
-      previousProbability: clampedProb,
-      volume: mkt.volume || 0,
-      change24h: 0,
-      priceHistory: [],
-      status: "active",
-      endDate: mkt.end_time ? new Date(mkt.end_time * 1000).toISOString() : "",
-      source: "kalshi",
-      clobTokenId: `${mkt.event_ticker}:${mkt.market_ticker}`,
-      sourceUrl: `https://kalshi.com/markets/${mkt.market_ticker}`,
+  for (let page = 0; page < maxPages; page++) {
+    const resp = await dome.kalshi.markets.getMarkets({
+      status: "open",
+      limit: 100,
+      offset,
     });
+
+    const batch = resp.markets || [];
+    if (batch.length === 0) break;
+
+    for (const mkt of batch) {
+      const prob = typeof mkt.last_price === "number" && mkt.last_price > 0
+        ? mkt.last_price
+        : 50;
+      const clampedProb = Math.max(1, Math.min(99, prob));
+
+      markets.push({
+        id: `kal-${mkt.market_ticker}`,
+        title: mkt.title,
+        description: mkt.title,
+        category: categorize(mkt.title + " " + (mkt.event_ticker || "")),
+        probability: clampedProb,
+        previousProbability: clampedProb,
+        volume: mkt.volume || 0,
+        change24h: 0,
+        priceHistory: [],
+        status: "active",
+        endDate: mkt.end_time ? new Date(mkt.end_time * 1000).toISOString() : "",
+        source: "kalshi",
+        clobTokenId: `${mkt.event_ticker}:${mkt.market_ticker}`,
+        sourceUrl: `https://kalshi.com/markets/${mkt.market_ticker}`,
+      });
+    }
+
+    if (!resp.pagination?.has_more) break;
+    offset += batch.length;
   }
+
   return markets;
 }
 
@@ -362,8 +322,10 @@ async function fetchKalshiViaDome(dome: DomeClient): Promise<Market[]> {
 export async function GET() {
   const dome = getDomeClient();
 
+  // Polymarket: always use direct Gamma API (includes inline prices, no rate limits)
+  // Kalshi: use Dome when available (better data), fall back to direct API
   const results = await Promise.allSettled([
-    dome ? fetchPolymarketViaDome(dome) : fetchPolymarket(),
+    fetchPolymarket(),
     dome ? fetchKalshiViaDome(dome) : fetchKalshi(),
     fetchManifold(),
     fetchPredictIt(),
