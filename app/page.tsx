@@ -171,7 +171,7 @@ export default function Home() {
       <div className="h-screen flex flex-col items-center justify-center bg-terminal-bg text-terminal-amber font-mono gap-2">
         <div className="text-2xl font-bold">PREDICT</div>
         <div className="text-sm text-terminal-muted">
-          Connecting to Polymarket...
+          Loading markets...
         </div>
       </div>
     );
