@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useArbPairs, useTerminalStore } from "@/lib/store";
+import { computeArbPnl } from "@/lib/arb-execution";
+import { useSession } from "next-auth/react";
 
 const sourceLabels: Record<string, { label: string; color: string }> = {
   polymarket: { label: "POLY", color: "text-purple-400" },
@@ -13,6 +16,11 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
 export default function ArbitragePanel() {
   const pairs = useArbPairs();
   const selectMarket = useTerminalStore((s) => s.selectMarket);
+  const executeArb = useTerminalStore((s) => s.executeArb);
+  const { data: session } = useSession();
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [arbAmount, setArbAmount] = useState("20");
+  const [executing, setExecuting] = useState(false);
 
   if (pairs.length === 0) {
     return (
@@ -115,6 +123,58 @@ export default function ArbitragePanel() {
                 </a>
               )}
             </div>
+
+            {/* EXEC ARB button */}
+            {session && (
+              <div className="mt-1 flex items-center gap-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedIdx(expandedIdx === i ? null : i);
+                  }}
+                  className="text-[9px] font-mono font-bold px-2 py-0.5 border border-terminal-green/50 text-terminal-green hover:bg-terminal-green/10 transition-colors"
+                >
+                  EXEC ARB
+                </button>
+                {expandedIdx === i && (
+                  <>
+                    <input
+                      type="number"
+                      value={arbAmount}
+                      onChange={(e) => setArbAmount(e.target.value)}
+                      className="w-16 bg-terminal-bg border border-terminal-border px-1 py-0.5 text-[10px] text-terminal-text font-mono focus:outline-none focus:border-terminal-amber"
+                      onClick={(e) => e.stopPropagation()}
+                      placeholder="$"
+                    />
+                    {(() => {
+                      const amt = parseFloat(arbAmount);
+                      if (!amt || amt <= 0) return null;
+                      const pnl = computeArbPnl(pair, amt);
+                      return (
+                        <span className="text-[9px] font-mono text-terminal-green">
+                          +${pnl.bestCase}
+                        </span>
+                      );
+                    })()}
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const amt = parseFloat(arbAmount);
+                        if (!amt || amt <= 0) return;
+                        setExecuting(true);
+                        await executeArb(pair, amt);
+                        setExecuting(false);
+                        setExpandedIdx(null);
+                      }}
+                      disabled={executing}
+                      className="text-[9px] font-mono font-bold px-2 py-0.5 border border-terminal-amber text-terminal-amber hover:bg-terminal-amber/10 disabled:opacity-30 transition-colors"
+                    >
+                      {executing ? "..." : "CONFIRM"}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>

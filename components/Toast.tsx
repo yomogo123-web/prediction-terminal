@@ -25,22 +25,12 @@ export default function Toast() {
     hapticNotification('warning');
   }, [triggeredAlerts.length]);
 
-  // Beep on new alert
+  // Beep on new alert (using sound system)
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
-    try {
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 880;
-      gain.gain.value = 0.1;
-      osc.start();
-      osc.stop(ctx.currentTime + 0.15);
-    } catch {
-      // Audio not available
-    }
+    import("@/lib/sound").then(({ playAlertSound }) => {
+      playAlertSound("beep");
+    });
   }, [triggeredAlerts.length]);
 
   if (triggeredAlerts.length === 0) return null;

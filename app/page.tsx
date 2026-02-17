@@ -23,6 +23,10 @@ export default function Home() {
   const fetchCredentialStatuses = useTerminalStore((s) => s.fetchCredentialStatuses);
   const fetchOrders = useTerminalStore((s) => s.fetchOrders);
   const fetchPositions = useTerminalStore((s) => s.fetchPositions);
+  const fetchPortfolio = useTerminalStore((s) => s.fetchPortfolio);
+  const fetchIndexes = useTerminalStore((s) => s.fetchIndexes);
+  const fetchLeaderboard = useTerminalStore((s) => s.fetchLeaderboard);
+  const fetchEvents = useTerminalStore((s) => s.fetchEvents);
   const simulatePriceUpdate = useTerminalStore((s) => s.simulatePriceUpdate);
   const markets = useTerminalStore((s) => s.markets);
   const loading = useTerminalStore((s) => s.loading);
@@ -67,6 +71,9 @@ export default function Home() {
       fetchCredentialStatuses();
       fetchOrders();
       fetchPositions();
+      fetchPortfolio();
+      fetchIndexes();
+      fetchLeaderboard();
     } else if (guestMode) {
       // Guest mode: hydrate from localStorage
       try {
@@ -78,7 +85,7 @@ export default function Home() {
         if (savedAlerts) setAlerts(JSON.parse(savedAlerts));
       } catch {}
     }
-  }, [session, guestMode, setWatchlist, setAlerts, fetchCredentialStatuses, fetchOrders, fetchPositions]);
+  }, [session, guestMode, setWatchlist, setAlerts, fetchCredentialStatuses, fetchOrders, fetchPositions, fetchPortfolio, fetchIndexes, fetchLeaderboard]);
 
   // Initialize markets on mount
   useEffect(() => {
@@ -145,6 +152,12 @@ export default function Home() {
     }, 10 * 60 * 1000);
     return () => clearInterval(interval);
   }, [markets.length, fetchSmartMoney]);
+
+  // Fetch calendar events on init
+  useEffect(() => {
+    if (markets.length === 0) return;
+    fetchEvents();
+  }, [markets.length, fetchEvents]);
 
   // Check alerts callback
   const runAlertCheck = useCallback(() => {

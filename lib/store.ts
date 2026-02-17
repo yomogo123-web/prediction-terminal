@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { Market, Category, SortField, SortDirection, RightPanelTab, Alert, ArbPair, CorrelationMatrix, MarketAnalytics, SentimentData, VolatilityData, VWAPData, ConcentrationData, MispricingSignal, MomentumData, EdgeSignal, NewsItem, AIEdgePrediction, AITrackStats, SmartMoneySignal } from "./types";
 import { OrderBook, TradeEstimate, TradeRequest, TradeSide, OrderType, OrderRecord, PositionRecord, CredentialStatus } from "./trading-types";
+import { PortfolioStats } from "./portfolio-types";
+import { MarketIndex } from "./index-types";
+import { CalendarEvent } from "./event-types";
+import { BacktestStrategy, BacktestResult } from "./backtest-types";
 import { generateMockMarkets } from "./mock-data";
 import { fetchMarkets, fetchPriceHistory } from "./api";
 import { findArbPairs } from "./arbitrage";
@@ -139,6 +143,39 @@ interface TerminalStore {
   setOrderFormLimitPrice: (price: string) => void;
   setTradeConfirmPending: (req: TradeRequest | null) => void;
   setShowCredentialsModal: (show: boolean) => void;
+
+  // Command palette
+  commandPaletteOpen: boolean;
+  setCommandPaletteOpen: (open: boolean) => void;
+
+  // Portfolio
+  portfolioStats: PortfolioStats | null;
+  portfolioLoading: boolean;
+  fetchPortfolio: () => Promise<void>;
+
+  // Market Indexes
+  marketIndexes: MarketIndex[];
+  indexesLoading: boolean;
+  fetchIndexes: () => Promise<void>;
+  createIndex: (name: string, marketIds: string[]) => Promise<void>;
+  deleteIndex: (id: string) => Promise<void>;
+
+  // Leaderboard
+  leaderboard: { userId: string; displayName: string; totalTrades: number; winRate: number | null; totalPnl: number; positionCount: number; rank: number }[];
+  leaderboardLoading: boolean;
+  fetchLeaderboard: () => Promise<void>;
+
+  // Arbitrage Execution
+  executeArb: (pair: ArbPair, amount: number) => Promise<void>;
+
+  // Backtesting
+  backtestResult: BacktestResult | null;
+  backtestLoading: boolean;
+  runBacktest: (strategy: BacktestStrategy) => Promise<void>;
+
+  // Calendar Events
+  calendarEvents: CalendarEvent[];
+  fetchEvents: () => Promise<void>;
 }
 
 export const useTerminalStore = create<TerminalStore>((set, get) => ({
@@ -191,6 +228,28 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   tradeSubmitting: false,
   tradeConfirmPending: null,
   showCredentialsModal: false,
+
+  // Command palette
+  commandPaletteOpen: false,
+
+  // Portfolio
+  portfolioStats: null,
+  portfolioLoading: false,
+
+  // Market Indexes
+  marketIndexes: [],
+  indexesLoading: false,
+
+  // Leaderboard
+  leaderboard: [],
+  leaderboardLoading: false,
+
+  // Backtesting
+  backtestResult: null,
+  backtestLoading: false,
+
+  // Calendar Events
+  calendarEvents: [],
 
   initMarkets: async () => {
     set({ loading: true });
@@ -705,6 +764,146 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   setOrderFormLimitPrice: (price) => set({ orderFormLimitPrice: price }),
   setTradeConfirmPending: (req) => set({ tradeConfirmPending: req }),
   setShowCredentialsModal: (show) => set({ showCredentialsModal: show }),
+
+  // Command palette
+  setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+
+  // Portfolio
+  fetchPortfolio: async () => {
+    set({ portfolioLoading: true });
+    try {
+      const res = await fetch("/api/portfolio");
+      if (res.ok) {
+        const stats: PortfolioStats = await res.json();
+        set({ portfolioStats: stats, portfolioLoading: false });
+      } else {
+        set({ portfolioLoading: false });
+      }
+    } catch {
+      set({ portfolioLoading: false });
+    }
+  },
+
+  // Market Indexes
+  fetchIndexes: async () => {
+    set({ indexesLoading: true });
+    try {
+      const res = await fetch("/api/indexes");
+      if (res.ok) {
+        const indexes: MarketIndex[] = await res.json();
+        set({ marketIndexes: indexes, indexesLoading: false });
+      } else {
+        set({ indexesLoading: false });
+      }
+    } catch {
+      set({ indexesLoading: false });
+    }
+  },
+
+  createIndex: async (name, marketIds) => {
+    try {
+      const res = await fetch("/api/indexes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, marketIds }),
+      });
+      if (res.ok) {
+        get().fetchIndexes();
+      }
+    } catch {
+      // silent
+    }
+  },
+
+  deleteIndex: async (id) => {
+    try {
+      await fetch("/api/indexes", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      set((state) => ({
+        marketIndexes: state.marketIndexes.filter((idx) => idx.id !== id),
+      }));
+    } catch {
+      // silent
+    }
+  },
+
+  // Leaderboard
+  fetchLeaderboard: async () => {
+    set({ leaderboardLoading: true });
+    try {
+      const res = await fetch("/api/leaderboard");
+      if (res.ok) {
+        const data = await res.json();
+        set({ leaderboard: data, leaderboardLoading: false });
+      } else {
+        set({ leaderboardLoading: false });
+      }
+    } catch {
+      set({ leaderboardLoading: false });
+    }
+  },
+
+  // Arbitrage Execution
+  executeArb: async (pair, amount) => {
+    try {
+      const halfAmount = amount / 2;
+      const res = await fetch("/api/trade/arbitrage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          marketAId: pair.marketA.id,
+          marketASide: "no",
+          marketASource: pair.marketA.source,
+          marketBId: pair.marketB.id,
+          marketBSide: "yes",
+          marketBSource: pair.marketB.source,
+          amount,
+        }),
+      });
+      if (res.ok) {
+        get().fetchOrders();
+        get().fetchPositions();
+      }
+    } catch {
+      // silent
+    }
+  },
+
+  // Backtesting
+  runBacktest: async (strategy) => {
+    set({ backtestLoading: true });
+    try {
+      const res = await fetch("/api/backtest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ strategy }),
+      });
+      if (res.ok) {
+        const result: BacktestResult = await res.json();
+        set({ backtestResult: result, backtestLoading: false });
+      } else {
+        set({ backtestLoading: false });
+      }
+    } catch {
+      set({ backtestLoading: false });
+    }
+  },
+
+  // Calendar Events
+  fetchEvents: async () => {
+    try {
+      const res = await fetch("/api/events");
+      if (res.ok) {
+        const events: CalendarEvent[] = await res.json();
+        set({ calendarEvents: events });
+      }
+    } catch {
+      // silent
+    }
+  },
 }));
 
 // Derived data hooks

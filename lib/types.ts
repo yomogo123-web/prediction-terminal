@@ -26,7 +26,7 @@ export interface Market {
 
 export type SortField = "probability" | "volume" | "change24h" | "title" | "edge";
 export type SortDirection = "asc" | "desc";
-export type RightPanelTab = "watchlist" | "analytics" | "arbitrage" | "news" | "aitrack" | "trading";
+export type RightPanelTab = "watchlist" | "analytics" | "arbitrage" | "news" | "aitrack" | "trading" | "portfolio" | "indexes" | "leaderboard" | "events" | "backtest";
 
 export interface EdgeSignal {
   marketId: string;

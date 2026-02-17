@@ -13,12 +13,17 @@ model User {
   hashedPassword   String
   name             String?
   polymarketWallet String?
+  leaderboardOptIn Boolean              @default(false)
+  displayName      String?
+  telegramChatId   String?              @unique
+  telegramLinkedAt DateTime?
   createdAt        DateTime             @default(now())
   watchlists       Watchlist[]
   alerts           Alert[]
   credentials      PlatformCredential[]
   orders           Order[]
   positions        Position[]
+  marketIndexes    MarketIndex[]
 }
 
 model Watchlist {
@@ -146,4 +151,26 @@ model Position {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, marketId, side])
+}
+
+model MarketIndex {
+  id        String            @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     MarketIndexItem[]
+
+  @@index([userId])
+}
+
+model MarketIndexItem {
+  id       String      @id @default(cuid())
+  indexId  String
+  marketId String
+  weight   Float       @default(1.0)
+  index    MarketIndex @relation(fields: [indexId], references: [id], onDelete: Cascade)
+
+  @@unique([indexId, marketId])
 }

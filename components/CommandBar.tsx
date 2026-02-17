@@ -7,9 +7,10 @@ import { useSession, signOut } from "next-auth/react";
 import SearchAutocomplete from "./SearchAutocomplete";
 import AlertBell from "./AlertBell";
 import AlertPanel from "./AlertPanel";
+import { isSoundEnabled, setSoundEnabled } from "@/lib/sound";
 
 const categories: Category[] = ["Politics", "Sports", "Crypto", "Tech", "World Events"];
-const tabCycle: RightPanelTab[] = ["watchlist", "analytics", "arbitrage", "news", "aitrack", "trading"];
+const tabCycle: RightPanelTab[] = ["watchlist", "analytics", "arbitrage", "news", "aitrack", "trading", "portfolio", "indexes", "leaderboard", "events", "backtest"];
 
 export default function CommandBar() {
   const { data: session } = useSession();
@@ -28,6 +29,8 @@ export default function CommandBar() {
   const [showAlertPanel, setShowAlertPanel] = useState(false);
   const [, setTick] = useState(0);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
+  const setCommandPaletteOpen = useTerminalStore((s) => s.setCommandPaletteOpen);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -132,6 +135,28 @@ export default function CommandBar() {
         <span className="text-terminal-muted hidden md:inline">│</span>
 
         <AlertBell onClick={() => setShowAlertPanel(true)} />
+
+        <button
+          onClick={() => {
+            const next = !soundOn;
+            setSoundOn(next);
+            setSoundEnabled(next);
+          }}
+          className="text-xs font-mono text-terminal-muted hover:text-terminal-text transition-colors hidden md:inline"
+          title="Toggle sound alerts"
+        >
+          {soundOn ? "[SND]" : "[MUTE]"}
+        </button>
+
+        <span className="text-terminal-muted hidden lg:inline">│</span>
+
+        <button
+          onClick={() => setCommandPaletteOpen(true)}
+          className="text-xs font-mono text-terminal-muted hover:text-terminal-amber transition-colors hidden lg:inline"
+          title="Command palette (Ctrl+K)"
+        >
+          Ctrl+K
+        </button>
 
         <span className="text-terminal-muted hidden lg:inline">│</span>
 

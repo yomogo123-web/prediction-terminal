@@ -15,6 +15,7 @@ export default function MarketDetail() {
   const [alertCondition, setAlertCondition] = useState<"above" | "below">("above");
   const [alertThreshold, setAlertThreshold] = useState("");
   const [showAlertForm, setShowAlertForm] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const edgeSignals = useEdgeSignals();
   const edge = selectedMarket ? edgeSignals.get(selectedMarket.id) : null;
@@ -383,6 +384,18 @@ export default function MarketDetail() {
             className="flex-1 py-3 lg:py-2 text-xs font-mono font-bold border border-terminal-muted text-terminal-muted hover:border-terminal-text hover:text-terminal-text transition-colors min-h-[44px]"
           >
             {showAlertForm ? "✕ CANCEL" : "SET ALERT"}
+          </button>
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/market/${selectedMarket.id}?title=${encodeURIComponent(selectedMarket.title)}&prob=${selectedMarket.probability.toFixed(1)}&change=${selectedMarket.change24h.toFixed(1)}&source=${selectedMarket.source}`;
+              navigator.clipboard.writeText(url).then(() => {
+                setShareCopied(true);
+                setTimeout(() => setShareCopied(false), 2000);
+              });
+            }}
+            className="py-3 lg:py-2 px-3 text-xs font-mono font-bold border border-terminal-muted text-terminal-muted hover:border-terminal-text hover:text-terminal-text transition-colors min-h-[44px]"
+          >
+            {shareCopied ? "COPIED" : "SHARE"}
           </button>
         </div>
 

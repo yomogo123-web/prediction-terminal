@@ -49,6 +49,10 @@ export default function CredentialsModal() {
   const [showApiKeyFallback, setShowApiKeyFallback] = useState(false);
   const [walletInput, setWalletInput] = useState("");
   const [linking, setLinking] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [leaderboardOptIn, setLeaderboardOptIn] = useState(false);
+  const [telegramLink, setTelegramLink] = useState("");
+  const [telegramLoading, setTelegramLoading] = useState(false);
 
   if (!showCredentialsModal) return null;
 
@@ -313,6 +317,82 @@ export default function CredentialsModal() {
               )}
             </>
           )}
+          {/* Leaderboard Opt-in */}
+          <div className="border-t border-terminal-border pt-3 mt-3 space-y-2">
+            <div className="text-[9px] text-terminal-muted uppercase tracking-wider">Leaderboard</div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={leaderboardOptIn}
+                onChange={async (e) => {
+                  const val = e.target.checked;
+                  setLeaderboardOptIn(val);
+                  await fetch("/api/settings/profile", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ leaderboardOptIn: val, displayName }),
+                  }).catch(() => {});
+                }}
+                className="accent-terminal-amber"
+              />
+              <span className="text-[10px] text-terminal-text font-mono">Show on leaderboard</span>
+            </label>
+            <div>
+              <label className="text-[9px] text-terminal-muted uppercase tracking-wider">Display Name</label>
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                onBlur={async () => {
+                  if (displayName) {
+                    await fetch("/api/settings/profile", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ displayName }),
+                    }).catch(() => {});
+                  }
+                }}
+                placeholder="Anonymous"
+                className="w-full mt-0.5 bg-terminal-bg border border-terminal-border px-2 py-1.5 text-xs text-terminal-text font-mono focus:outline-none focus:border-terminal-amber"
+              />
+            </div>
+          </div>
+
+          {/* Telegram Linking */}
+          <div className="border-t border-terminal-border pt-3 mt-3 space-y-2">
+            <div className="text-[9px] text-terminal-muted uppercase tracking-wider">Telegram Notifications</div>
+            {telegramLink ? (
+              <div className="space-y-1">
+                <div className="text-[10px] text-terminal-muted">Click the link below to connect your Telegram:</div>
+                <a
+                  href={telegramLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-xs font-mono text-terminal-amber underline hover:text-terminal-amber/80 break-all"
+                >
+                  {telegramLink}
+                </a>
+              </div>
+            ) : (
+              <button
+                onClick={async () => {
+                  setTelegramLoading(true);
+                  try {
+                    const res = await fetch("/api/telegram/register", { method: "POST" });
+                    if (res.ok) {
+                      const data = await res.json();
+                      setTelegramLink(data.linkUrl);
+                    }
+                  } catch {}
+                  setTelegramLoading(false);
+                }}
+                disabled={telegramLoading}
+                className="w-full py-1.5 text-xs font-mono font-bold border border-terminal-amber text-terminal-amber hover:bg-terminal-amber/10 disabled:opacity-30 transition-colors"
+              >
+                {telegramLoading ? "GENERATING..." : "LINK TELEGRAM"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useTerminalStore, useSelectedMarket } from "@/lib/store";
 import { useEffect } from "react";
 import { useSession } from "next-auth/react";
+import PositionSizer from "./PositionSizer";
 
 export default function TradePanel() {
   const { data: session } = useSession();
@@ -223,6 +224,8 @@ export default function TradePanel() {
           )}
         </>
       )}
+      {/* Position Sizer */}
+      <PositionSizer />
     </div>
   );
 }

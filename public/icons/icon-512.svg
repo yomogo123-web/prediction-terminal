@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Dark background -->
+  <rect width="512" height="512" fill="#0a0a0a"/>
+  
+  <!-- Terminal grid pattern (subtle) -->
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#1a1a1a" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="512" height="512" fill="url(#grid)" opacity="0.3"/>
+  
+  <!-- Amber "P" letter -->
+  <text x="256" y="360" font-family="monospace" font-size="320" font-weight="bold" fill="#ffaa00" text-anchor="middle" letter-spacing="-8">
+    P
+  </text>
+  
+  <!-- Terminal cursor effect (optional accent) -->
+  <rect x="230" y="395" width="52" height="20" fill="#ffaa00" opacity="0.6" rx="3"/>
+</svg>

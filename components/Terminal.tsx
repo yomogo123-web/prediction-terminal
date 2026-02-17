@@ -17,6 +17,13 @@ import TrendingPanel from "./TrendingPanel";
 import MobileNav from "./MobileNav";
 import Toast from "./Toast";
 import ErrorBoundary from "./ErrorBoundary";
+import CommandPalette from "./CommandPalette";
+import InstallPrompt from "./InstallPrompt";
+import PortfolioDashboard from "./PortfolioDashboard";
+import IndexPanel from "./IndexPanel";
+import LeaderboardPanel from "./LeaderboardPanel";
+import EventCalendar from "./EventCalendar";
+import BacktestPanel from "./BacktestPanel";
 import { useTerminalStore } from "@/lib/store";
 import { RightPanelTab } from "@/lib/types";
 
@@ -26,23 +33,47 @@ function TabContent({ tab }: { tab: RightPanelTab }) {
   if (tab === "arbitrage") return <ArbitragePanel />;
   if (tab === "aitrack") return <AITrackPanel />;
   if (tab === "trading") return <TradingPanel />;
+  if (tab === "portfolio") return <PortfolioDashboard />;
+  if (tab === "indexes") return <IndexPanel />;
+  if (tab === "leaderboard") return <LeaderboardPanel />;
+  if (tab === "events") return <EventCalendar />;
+  if (tab === "backtest") return <BacktestPanel />;
   return <NewsPanel />;
 }
 
+const TAB_LABELS: Record<RightPanelTab, string> = {
+  watchlist: "★ Watch",
+  analytics: "◆ Stats",
+  arbitrage: "⇄ Arb",
+  news: "◎ News",
+  aitrack: "⊙ AI",
+  trading: "$ Trade",
+  portfolio: "◈ Folio",
+  indexes: "▦ Index",
+  leaderboard: "⊕ Rank",
+  events: "◉ Events",
+  backtest: "⟳ Bktest",
+};
+
+const ALL_TABS: RightPanelTab[] = [
+  "watchlist", "analytics", "arbitrage", "news", "aitrack", "trading",
+  "portfolio", "indexes", "leaderboard", "events", "backtest",
+];
+
 function TabBar({ rightPanelTab, setRightPanelTab }: { rightPanelTab: RightPanelTab; setRightPanelTab: (tab: RightPanelTab) => void }) {
   return (
-    <div className="flex border-b border-terminal-border">
-      {(["watchlist", "analytics", "arbitrage", "news", "aitrack", "trading"] as RightPanelTab[]).map((tab) => (
+    <div className="flex border-b border-terminal-border overflow-x-auto scrollbar-none">
+      {ALL_TABS.map((tab) => (
         <button
           key={tab}
           onClick={() => setRightPanelTab(tab)}
-          className={`flex-1 px-3 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors ${
+          className={`flex-shrink-0 px-2 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors whitespace-nowrap ${
             rightPanelTab === tab
               ? "text-terminal-amber border-b border-terminal-amber bg-terminal-bg"
               : "text-terminal-muted hover:text-terminal-text"
           }`}
         >
-          {tab === "watchlist" ? "★ Watch" : tab === "analytics" ? "◆ Analytics" : tab === "arbitrage" ? "⇄ Arb" : tab === "news" ? "◎ News" : tab === "aitrack" ? "⊙ AI Track" : "$ Trade"}
+          {TAB_LABELS[tab]}
         </button>
       ))}
     </div>
@@ -152,6 +183,12 @@ export default function Terminal() {
 
       {/* Credentials modal */}
       <CredentialsModal />
+
+      {/* Command palette */}
+      <CommandPalette />
+
+      {/* PWA install prompt */}
+      <InstallPrompt />
     </div>
   );
 }

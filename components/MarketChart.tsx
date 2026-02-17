@@ -2,7 +2,7 @@
 
 import { useSelectedMarket, useTerminalStore } from "@/lib/store";
 import { useEffect, useRef } from "react";
-import { createChart, IChartApi, ISeriesApi, AreaSeries } from "lightweight-charts";
+import { createChart, IChartApi, ISeriesApi, AreaSeries, SeriesMarker, Time, createSeriesMarkers, ISeriesMarkersPluginApi } from "lightweight-charts";
 
 export default function MarketChart() {
   const selectedMarket = useSelectedMarket();
@@ -12,6 +12,7 @@ export default function MarketChart() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
+  const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
 
   // Create chart on mount
   useEffect(() => {
@@ -130,6 +131,40 @@ export default function MarketChart() {
 
     chartRef.current?.timeScale().fitContent();
   }, [selectedMarket?.id, selectedMarket?.priceHistory.length, selectedMarket?.change24h]);
+
+  // Add event markers
+  const calendarEvents = useTerminalStore((s) => s.calendarEvents);
+  useEffect(() => {
+    if (!seriesRef.current || !selectedMarket) return;
+    if (selectedMarket.priceHistory.length === 0) return;
+
+    const relevantEvents = calendarEvents.filter(
+      (e) => e.relevantMarketIds.includes(selectedMarket.id) || e.category === selectedMarket.category
+    );
+
+    // Clean up previous markers
+    if (markersRef.current) {
+      markersRef.current.detach();
+      markersRef.current = null;
+    }
+
+    if (relevantEvents.length === 0) return;
+
+    const markers: SeriesMarker<Time>[] = relevantEvents
+      .map((event) => {
+        const eventTime = Math.floor(new Date(event.date).getTime() / 1000);
+        return {
+          time: eventTime as Time,
+          position: "aboveBar" as const,
+          color: "#ffaa00",
+          shape: "circle" as const,
+          text: event.title.slice(0, 20),
+        };
+      })
+      .sort((a, b) => (a.time as number) - (b.time as number));
+
+    markersRef.current = createSeriesMarkers(seriesRef.current, markers);
+  }, [calendarEvents, selectedMarket?.id, selectedMarket?.category, selectedMarket?.priceHistory.length]);
 
   if (!selectedMarket) {
     return (
