@@ -23,7 +23,7 @@ async function fetchPolymarketHistoryViaDome(conditionId: string): Promise<Price
     for (const c of candles) {
       points.push({
         time: c.end_period_ts,
-        probability: Math.round(c.price.close * 10000) / 100,
+        probability: c.price.close > 1 ? Math.round(c.price.close * 100) / 100 : Math.round(c.price.close * 10000) / 100,
       });
     }
   }

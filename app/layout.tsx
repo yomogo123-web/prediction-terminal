@@ -5,7 +5,7 @@ import AuthProvider from "@/components/AuthProvider";
 export const metadata: Metadata = {
   title: "PREDICT Terminal",
   description: "Real-time prediction markets tracker — prices, charts, and trading across Polymarket, Kalshi, PredictIt, and Manifold.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://predicterminal.vercel.app"),
   openGraph: {
     title: "PREDICT Terminal",
     description: "Real-time prediction markets terminal — prices, charts, trading, AI edge, and arbitrage detection.",
@@ -37,8 +37,8 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0a0a0a" />
-        <link rel="icon" href="/icons/icon-192.png" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
       </head>
       <body>
         <AuthProvider>{children}</AuthProvider>

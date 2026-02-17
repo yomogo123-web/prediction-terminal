@@ -83,7 +83,7 @@ export class PolymarketAdapter implements TradingAdapter {
     }
 
     try {
-      const side = order.side === "yes" ? "BUY" : "BUY"; // Both sides are BUY on respective token
+      const side = order.side === "yes" ? "BUY" : "SELL"; // BUY YES or SELL YES (equivalent to buying NO)
       const price = order.type === "limit" && order.limitPrice
         ? (order.limitPrice / 100).toFixed(2)
         : undefined;

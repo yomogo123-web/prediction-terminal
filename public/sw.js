@@ -1,4 +1,4 @@
-const CACHE_NAME = "predict-terminal-v1";
+const CACHE_NAME = "predict-terminal-v2";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
@@ -22,15 +22,13 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Fetch: network-first for API, cache-first for static
+// Fetch: network-only for API, cache-first for static
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // Network-first for API routes
+  // Never cache API routes — they contain authenticated/dynamic data
   if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    );
+    event.respondWith(fetch(event.request));
     return;
   }
 
@@ -39,8 +37,8 @@ self.addEventListener("fetch", (event) => {
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
       return fetch(event.request).then((response) => {
-        // Cache successful GET responses
-        if (response.ok && event.request.method === "GET") {
+        // Only cache successful GET responses for same-origin static assets
+        if (response.ok && event.request.method === "GET" && url.origin === self.location.origin) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }

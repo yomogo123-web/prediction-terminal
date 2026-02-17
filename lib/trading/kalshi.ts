@@ -49,6 +49,12 @@ export class KalshiAdapter implements TradingAdapter {
   async placeOrder(order: TradeRequest, credentials: Record<string, string>): Promise<TradeResponse> {
     const ticker = order.marketId.replace(/^kal-/, "");
 
+    // Convert USD amount to contract count: Kalshi count = number of contracts, not dollars
+    // Each contract pays $1 on correct resolution. Price is in cents (0-100).
+    const priceInCents = order.limitPrice || 50; // default to 50c if no limit price
+    const pricePerContract = priceInCents / 100;
+    const contractCount = Math.max(1, Math.floor(order.amount / pricePerContract));
+
     // Try RSA-PSS SDK auth first
     const ordersApi = getKalshiOrdersApi();
     if (ordersApi && credentials.authMethod === "rsa") {
@@ -66,7 +72,7 @@ export class KalshiAdapter implements TradingAdapter {
           action: "buy",
           side: order.side as "yes" | "no",
           type: order.type as "market" | "limit",
-          count: Math.floor(order.amount),
+          count: contractCount,
         };
         if (order.type === "limit" && order.limitPrice) {
           if (order.side === "yes") createReq.yes_price = order.limitPrice;
@@ -109,7 +115,7 @@ export class KalshiAdapter implements TradingAdapter {
         action: "buy",
         side: order.side,
         type: order.type,
-        count: Math.floor(order.amount),
+        count: contractCount,
       };
       if (order.type === "limit" && order.limitPrice) {
         body.yes_price = order.side === "yes" ? order.limitPrice : undefined;

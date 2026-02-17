@@ -11,14 +11,14 @@ export default function PositionSizer() {
   const [collapsed, setCollapsed] = useState(true);
   const [bankroll, setBankroll] = useState(() => {
     if (typeof window === "undefined") return "1000";
-    return localStorage.getItem("predict_bankroll") || "1000";
+    try { return localStorage.getItem("predict_bankroll") || "1000"; } catch { return "1000"; }
   });
   const [trueProb, setTrueProb] = useState("");
 
   // Persist bankroll
   useEffect(() => {
     if (typeof window !== "undefined" && bankroll) {
-      localStorage.setItem("predict_bankroll", bankroll);
+      try { localStorage.setItem("predict_bankroll", bankroll); } catch { /* storage unavailable */ }
     }
   }, [bankroll]);
 

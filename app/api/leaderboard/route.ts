@@ -8,9 +8,7 @@ export async function GET() {
   const users = await prisma.user.findMany({
     where: { leaderboardOptIn: true },
     select: {
-      id: true,
       displayName: true,
-      email: true,
       orders: {
         where: { status: { in: ["filled", "partial"] } },
         select: { id: true, amount: true, fillPrice: true, side: true, marketId: true },
@@ -37,8 +35,7 @@ export async function GET() {
       : null;
 
     return {
-      userId: user.id,
-      displayName: user.displayName || user.email.split("@")[0],
+      displayName: user.displayName || "Anonymous Trader",
       totalTrades,
       winRate: winRate !== null ? Math.round(winRate * 10) / 10 : null,
       totalPnl: Math.round(totalPnl * 100) / 100,

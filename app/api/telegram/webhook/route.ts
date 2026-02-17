@@ -5,6 +5,13 @@ import { fetchMarkets } from "@/lib/api";
 import { fuzzySearch } from "@/lib/fuzzy-search";
 
 export async function POST(req: NextRequest) {
+  // Verify the request is from Telegram using the secret token header
+  const secret = req.headers.get("x-telegram-bot-api-secret-token");
+  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (expectedSecret && secret !== expectedSecret) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const body = await req.json();
 
   const message = body.message;

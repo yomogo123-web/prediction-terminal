@@ -695,8 +695,12 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(req),
       });
-      const data = await res.json();
-      if (data.error === "no_credentials") {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        if (err.error === "no_credentials") {
+          set({ tradeSubmitting: false });
+          return;
+        }
         set({ tradeSubmitting: false });
         return;
       }

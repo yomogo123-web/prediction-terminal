@@ -23,9 +23,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
   }
 
+  if (amount < 0.20 || amount > 2000) {
+    return NextResponse.json({ error: "Amount must be between $0.20 and $2000" }, { status: 400 });
+  }
+
+  // Execute both legs via the main trade order endpoint
+  const legHalf = Math.round(amount / 2 * 100) / 100;
+
   const [legAResult, legBResult] = await Promise.allSettled([
-    executeLeg(userId, marketAId, marketASide, marketASource, amount / 2),
-    executeLeg(userId, marketBId, marketBSide, marketBSource, amount / 2),
+    executeViaTradeEndpoint(userId, marketAId, marketASide, marketASource, legHalf),
+    executeViaTradeEndpoint(userId, marketBId, marketBSide, marketBSource, legHalf),
   ]);
 
   const legAStatus = legAResult.status === "fulfilled" ? legAResult.value : { status: "failed", error: String(legAResult.reason) };
@@ -34,53 +41,52 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     legA: legAStatus,
     legB: legBStatus,
-    bothSucceeded: legAStatus.status === "filled" && legBStatus.status === "filled",
+    bothSucceeded: legAStatus.status !== "failed" && legBStatus.status !== "failed",
   });
 }
 
-async function executeLeg(
+async function executeViaTradeEndpoint(
   userId: string,
   marketId: string,
   side: string,
   platform: string,
   amount: number
-): Promise<{ status: string; orderId: string; error?: string }> {
+): Promise<{ status: string; orderId?: string; error?: string }> {
+  // Create a pending order record
   const order = await prisma.order.create({
     data: { userId, marketId, platform, side, type: "market", amount, status: "pending" },
   });
 
   try {
-    const fillPrice = 0.5;
-    const shares = amount / fillPrice;
+    // Use internal fetch to the trade order endpoint which handles actual exchange execution
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000";
+
+    const res = await fetch(`${baseUrl}/api/trade/order`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ marketId, side, type: "market", amount, source: platform }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Trade execution failed" }));
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { status: "rejected", errorMessage: err.error || "Execution failed" },
+      });
+      return { status: "failed", orderId: order.id, error: err.error || "Execution failed" };
+    }
 
     await prisma.order.update({
       where: { id: order.id },
-      data: { status: "filled", fillPrice, shares },
+      data: { status: "submitted" },
     });
 
-    const existingPos = await prisma.position.findUnique({
-      where: { userId_marketId_side: { userId, marketId, side } },
-    });
-
-    if (existingPos) {
-      const totalShares = existingPos.shares + shares;
-      const newAvg = ((existingPos.shares * existingPos.avgCostBasis) + (shares * fillPrice)) / totalShares;
-      await prisma.position.update({
-        where: { id: existingPos.id },
-        data: { shares: totalShares, avgCostBasis: newAvg },
-      });
-    } else {
-      await prisma.position.create({
-        data: { userId, marketId, platform, side, shares, avgCostBasis: fillPrice, currentPrice: fillPrice },
-      });
-    }
-
-    return { status: "filled", orderId: order.id };
+    return { status: "submitted", orderId: order.id };
   } catch (e) {
     await prisma.order.update({
       where: { id: order.id },
-      data: { status: "rejected", errorMessage: String(e) },
+      data: { status: "rejected", errorMessage: e instanceof Error ? e.message : "Unknown error" },
     });
-    return { status: "failed", orderId: order.id, error: String(e) };
+    return { status: "failed", orderId: order.id, error: e instanceof Error ? e.message : "Unknown error" };
   }
 }

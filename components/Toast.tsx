@@ -9,14 +9,13 @@ export default function Toast() {
   const dismissTriggeredAlert = useTerminalStore((s) => s.dismissTriggeredAlert);
   const markets = useTerminalStore((s) => s.markets);
 
-  // Auto-dismiss after 5 seconds
+  // Auto-dismiss each alert after 5 seconds
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
-    const latest = triggeredAlerts[triggeredAlerts.length - 1];
-    const timer = setTimeout(() => {
-      dismissTriggeredAlert(latest.id);
-    }, 5000);
-    return () => clearTimeout(timer);
+    const timers = triggeredAlerts.map((alert) =>
+      setTimeout(() => dismissTriggeredAlert(alert.id), 5000)
+    );
+    return () => timers.forEach(clearTimeout);
   }, [triggeredAlerts, dismissTriggeredAlert]);
 
   // Haptic on new alert

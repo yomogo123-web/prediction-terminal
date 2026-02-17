@@ -44,6 +44,10 @@ model Alert {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([marketId])
+  @@index([active])
 }
 
 model AiPrediction {
@@ -134,6 +138,7 @@ model Order {
 
   @@index([userId, createdAt])
   @@index([status])
+  @@index([marketId])
 }
 
 model Position {
@@ -151,6 +156,7 @@ model Position {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, marketId, side])
+  @@index([userId])
 }
 
 model MarketIndex {

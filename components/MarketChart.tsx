@@ -2,7 +2,7 @@
 
 import { useSelectedMarket, useTerminalStore } from "@/lib/store";
 import { useEffect, useRef } from "react";
-import { createChart, IChartApi, ISeriesApi, AreaSeries, SeriesMarker, Time, createSeriesMarkers, ISeriesMarkersPluginApi } from "lightweight-charts";
+import { createChart, IChartApi, ISeriesApi, AreaSeries, SeriesMarker, Time } from "lightweight-charts";
 
 export default function MarketChart() {
   const selectedMarket = useSelectedMarket();
@@ -12,7 +12,8 @@ export default function MarketChart() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
-  const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const markersRef = useRef<any>(null);
 
   // Create chart on mount
   useEffect(() => {
@@ -132,7 +133,7 @@ export default function MarketChart() {
     chartRef.current?.timeScale().fitContent();
   }, [selectedMarket?.id, selectedMarket?.priceHistory.length, selectedMarket?.change24h]);
 
-  // Add event markers
+  // Add event markers (dynamically imported to avoid breaking chart if API differs)
   const calendarEvents = useTerminalStore((s) => s.calendarEvents);
   useEffect(() => {
     if (!seriesRef.current || !selectedMarket) return;
@@ -144,7 +145,7 @@ export default function MarketChart() {
 
     // Clean up previous markers
     if (markersRef.current) {
-      markersRef.current.detach();
+      try { markersRef.current.detach(); } catch { /* ignore */ }
       markersRef.current = null;
     }
 
@@ -163,7 +164,12 @@ export default function MarketChart() {
       })
       .sort((a, b) => (a.time as number) - (b.time as number));
 
-    markersRef.current = createSeriesMarkers(seriesRef.current, markers);
+    // Dynamic import so a missing export can't crash the chart
+    import("lightweight-charts").then((mod) => {
+      if (typeof mod.createSeriesMarkers === "function" && seriesRef.current) {
+        markersRef.current = mod.createSeriesMarkers(seriesRef.current, markers);
+      }
+    }).catch(() => { /* markers not supported in this version */ });
   }, [calendarEvents, selectedMarket?.id, selectedMarket?.category, selectedMarket?.priceHistory.length]);
 
   if (!selectedMarket) {

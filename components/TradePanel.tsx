@@ -24,21 +24,11 @@ export default function TradePanel() {
   const fetchTradeEstimate = useTerminalStore((s) => s.fetchTradeEstimate);
   const setShowCredentialsModal = useTerminalStore((s) => s.setShowCredentialsModal);
 
-  if (!selectedMarket) return null;
-
-  // Can't trade PredictIt or mock
-  if (selectedMarket.source === "predictit" || selectedMarket.source === "mock") {
-    return null;
-  }
-
-  const platformCred = credentialStatuses.find((c) => c.platform === selectedMarket.source);
-  const hasCredentials = platformCred?.configured || (selectedMarket.source === "polymarket" && polymarketLinked);
-  const isPolymarketWallet = selectedMarket.source === "polymarket" && polymarketLinked;
-
-  // Fetch estimate when form changes
+  // Fetch estimate when form changes — hook must be above early returns
   useEffect(() => {
+    if (!selectedMarket) return;
     const amount = parseFloat(orderFormAmount);
-    if (!selectedMarket || isNaN(amount) || amount <= 0) return;
+    if (isNaN(amount) || amount <= 0) return;
 
     const timer = setTimeout(() => {
       fetchTradeEstimate({
@@ -52,7 +42,18 @@ export default function TradePanel() {
       });
     }, 300);
     return () => clearTimeout(timer);
-  }, [selectedMarket?.id, orderFormSide, orderFormType, orderFormAmount, orderFormLimitPrice, fetchTradeEstimate]);
+  }, [selectedMarket?.id, orderFormSide, orderFormType, orderFormAmount, orderFormLimitPrice, fetchTradeEstimate, selectedMarket]);
+
+  if (!selectedMarket) return null;
+
+  // Can't trade PredictIt or mock
+  if (selectedMarket.source === "predictit" || selectedMarket.source === "mock") {
+    return null;
+  }
+
+  const platformCred = credentialStatuses.find((c) => c.platform === selectedMarket.source);
+  const hasCredentials = platformCred?.configured || (selectedMarket.source === "polymarket" && polymarketLinked);
+  const isPolymarketWallet = selectedMarket.source === "polymarket" && polymarketLinked;
 
   const handlePlaceOrder = () => {
     const amount = parseFloat(orderFormAmount);

@@ -15,8 +15,10 @@ export default function InstallPrompt() {
   useEffect(() => {
     // Check if already dismissed
     if (typeof window !== "undefined") {
-      const wasDismissed = localStorage.getItem("predict_install_dismissed");
-      if (wasDismissed) setDismissed(true);
+      try {
+        const wasDismissed = localStorage.getItem("predict_install_dismissed");
+        if (wasDismissed) setDismissed(true);
+      } catch { /* storage unavailable */ }
     }
 
     const handler = (e: Event) => {
@@ -47,7 +49,7 @@ export default function InstallPrompt() {
   const handleDismiss = () => {
     setDismissed(true);
     if (typeof window !== "undefined") {
-      localStorage.setItem("predict_install_dismissed", "true");
+      try { localStorage.setItem("predict_install_dismissed", "true"); } catch { /* storage unavailable */ }
     }
   };
 
