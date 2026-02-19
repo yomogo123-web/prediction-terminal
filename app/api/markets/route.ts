@@ -32,7 +32,7 @@ function categorize(text: string): Category {
 // ─── Polymarket (paginated — 3 parallel requests) ───────────────────
 
 async function fetchPolymarket(): Promise<Market[]> {
-  const offsets = [0, 40, 80];
+  const offsets = [0, 40, 80, 120, 160, 200];
   const fetches = offsets.map((offset) =>
     fetch(
       `https://gamma-api.polymarket.com/events?closed=false&limit=40&order=volume24hr&ascending=false&offset=${offset}`,

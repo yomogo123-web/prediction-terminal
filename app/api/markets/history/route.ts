@@ -151,13 +151,7 @@ export async function GET(request: NextRequest) {
 
     switch (source) {
       case "polymarket": {
-        // Prefer Dome candlesticks when conditionId is available and Dome is configured
-        const dome = getDomeClient();
-        if (dome && conditionId) {
-          history = await fetchPolymarketHistoryViaDome(conditionId);
-          if (history.length > 0) break;
-        }
-        // Fallback to direct CLOB API
+        // Always use direct CLOB API — most reliable and consistent 0-1 price format
         history = await fetchPolymarketHistory(token);
         break;
       }
